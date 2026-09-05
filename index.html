@@ -265,6 +265,24 @@ td .azioni button{padding:.35rem .6rem;font-size:.85rem}
 
 <div id="avvisi" class="avvisi" role="status" aria-live="polite"></div>
 
+<!-- Schermata di primo avvio: archivio vuoto, si crea il primo amministratore -->
+<section id="schermata-primo-avvio" class="schermata" hidden aria-labelledby="titolo-primo-avvio">
+  <form class="riquadro" id="modulo-primo-avvio" novalidate>
+    <div class="marchio-grande" data-marchio></div>
+    <h1 id="titolo-primo-avvio">Benvenuto</h1>
+    <p class="nota">L’archivio è vuoto. Inserisci i tuoi dati: sarai l’amministratore del gruppo e potrai aggiungere gli altri dalla sezione Utenti.</p>
+    <div class="campi-affiancati">
+      <div class="campo"><label for="pa-nome">Nome</label><input id="pa-nome" required autocomplete="given-name"></div>
+      <div class="campo"><label for="pa-cognome">Cognome</label><input id="pa-cognome" required autocomplete="family-name"></div>
+    </div>
+    <div class="campo"><label for="pa-posta">Posta elettronica</label><input id="pa-posta" type="email" required autocomplete="email"></div>
+    <button type="submit" class="principale grande">Inizia</button>
+    <p class="nota" style="margin-top:1rem">I dati restano in questo browser. Se hai già una copia di sicurezza, puoi ripristinarla.</p>
+    <button type="button" class="secondario grande" id="pulsante-importa-primo-avvio">Ripristina da una copia di sicurezza</button>
+    <input id="file-importa-primo-avvio" type="file" accept="application/json,.json" hidden>
+  </form>
+</section>
+
 <!-- Schermata di accesso: si sceglie chi sta usando il gestionale -->
 <section id="schermata-accesso" class="schermata" hidden aria-labelledby="titolo-accesso">
   <div class="riquadro">
@@ -376,10 +394,6 @@ function oggiArchivio(giorniAvanti = 0) {
   data.setDate(data.getDate() + giorniAvanti);
   return new Date(data.getTime() - data.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
-function giorniFa(n, ore = 10) {
-  const d = new Date(); d.setDate(d.getDate() - n); d.setHours(ore, 0, 0, 0);
-  return d.toISOString();
-}
 function avvisa(messaggio, tipo = 'neutro', durata = 5000) {
   const nodo = document.createElement('div');
   nodo.className = `avviso ${tipo === 'errore' ? 'errore' : tipo === 'bene' ? 'bene' : ''}`;
@@ -426,10 +440,12 @@ function caricaArchivio() {
     const testo = localStorage.getItem(CHIAVI_LOCALI.archivio);
     if (testo) {
       const letto = JSON.parse(testo);
-      if (archivioValido(letto)) { archivio = letto; return; }
+      // Gli archivi di prova delle prime versioni usavano indirizzi @esempio.it: si scartano
+      const dimostrativo = archivioValido(letto) && letto.profili.some((p) => /@esempio\.it$/i.test(p.posta_elettronica ?? ''));
+      if (archivioValido(letto) && !dimostrativo) { archivio = letto; return; }
     }
-  } catch { /* archivio illeggibile: si ricomincia dai dati dimostrativi */ }
-  archivio = creaDatiDimostrativi();
+  } catch { /* archivio illeggibile: si ricomincia da vuoto */ }
+  archivio = archivioVuoto();
   salvaArchivio();
 }
 let ignoraProssimoEventoStorage = false;
@@ -445,99 +461,6 @@ function salvaArchivio() {
 }
 function registra(attivitaId, azione, utenteId = stato.profilo?.id ?? null) {
   archivio.registro_eventi.push({ id:nuovoId(), attivita_id:attivitaId, utente_id:utenteId, azione, creato_il:adesso() });
-}
-
-/* --- Dati dimostrativi per la prima apertura --- */
-function creaDatiDimostrativi() {
-  const a = archivioVuoto();
-  const idP = () => nuovoId();
-  const guido = idP(), maria = idP(), luca = idP(), anna = idP();
-  a.profili = [
-    { id:guido, nome:'Guido', cognome:'Costalonga', posta_elettronica:'guido@esempio.it', telefono:'333 1234567', ruolo:'amministratore', attivo:true, creato_il:giorniFa(60), ultimo_accesso:giorniFa(0, 8), ultima_lettura_notifiche:giorniFa(3) },
-    { id:maria, nome:'Maria', cognome:'Rossi', posta_elettronica:'maria.rossi@esempio.it', telefono:'347 9876543', ruolo:'collaboratore', attivo:true, creato_il:giorniFa(58), ultimo_accesso:giorniFa(1, 17), ultima_lettura_notifiche:giorniFa(4) },
-    { id:luca, nome:'Luca', cognome:'Bianchi', posta_elettronica:'luca.bianchi@esempio.it', telefono:'', ruolo:'collaboratore', attivo:true, creato_il:giorniFa(50), ultimo_accesso:giorniFa(2, 9), ultima_lettura_notifiche:giorniFa(5) },
-    { id:anna, nome:'Anna', cognome:'Verdi', posta_elettronica:'anna.verdi@esempio.it', telefono:'328 5551234', ruolo:'collaboratore', attivo:false, creato_il:giorniFa(45), ultimo_accesso:giorniFa(20), ultima_lettura_notifiche:giorniFa(20) }
-  ];
-  const c = (nome, ente, qualifica, telefono, posta, indirizzo, etichette, note, chi) => ({
-    id:nuovoId(), nome, ente, ruolo_contatto:qualifica, telefono, posta_elettronica:posta, indirizzo,
-    etichette, note, creato_da:chi, creato_il:giorniFa(40), aggiornato_il:giorniFa(Math.floor(Math.random() * 20))
-  });
-  a.contatti = [
-    c('Paolo Marchetti', 'Comune di Pordenone', 'Dirigente Servizi sociali', '0434 392111', 'p.marchetti@comune.pordenone.it', 'Corso Vittorio Emanuele II 64, Pordenone', ['ente pubblico', 'sociale'], 'Preferisce essere contattato al mattino.', guido),
-    c('Giulia Sartori', 'Pro Loco Sacile', 'Presidente', '0434 71888', 'info@prolocosacile.it', 'Piazza del Popolo 1, Sacile', ['associazione', 'eventi'], '', maria),
-    c('Studio Legale Furlan', 'Studio Legale Furlan & Associati', 'Segreteria', '0434 520044', 'segreteria@furlanlegale.it', 'Via Mazzini 12, Pordenone', ['fornitore', 'legale'], 'Fatture entro il 10 del mese.', guido),
-    c('Elena Moretti', 'Istituto Comprensivo Torre', 'Dirigente scolastica', '0434 361428', 'dirigente@ictorre.edu.it', 'Via Interna 1, Pordenone', ['scuola'], 'Progetto DSA in corso.', luca),
-    c('Marco De Luca', 'Cooperativa Il Ponte', 'Coordinatore', '340 1122334', 'marco@coopilponte.org', 'Via Roma 5, Cordenons', ['cooperativa', 'sociale'], '', maria),
-    c('Tipografia Sartor', 'Tipografia Sartor snc', 'Titolare', '0434 240310', 'ordini@tipografiasartor.it', 'Via Nuova di Corva 80, Pordenone', ['fornitore', 'stampa'], 'Tempi di consegna: 5 giorni lavorativi.', guido),
-    c('Francesca Rigo', 'Regione FVG - Direzione Lavoro', 'Funzionaria', '040 3775111', 'francesca.rigo@regione.fvg.it', 'Via San Francesco 37, Trieste', ['ente pubblico', 'bandi'], '', luca),
-    c('Roberto Zanin', 'Associazione Volontari Ospedale', 'Referente', '335 6677889', 'r.zanin@avo-pn.it', 'Via Montereale 24, Pordenone', ['associazione', 'volontariato'], '', maria),
-    c('Bar Centrale', 'Bar Centrale di Toffoli Sara', 'Titolare', '0434 21345', 'barcentrale@esempio.it', 'Piazza XX Settembre 3, Pordenone', ['esercizio', 'eventi'], 'Disponibile per il catering delle riunioni.', guido),
-    c('Chiara Pavan', 'Gazzettino - redazione Pordenone', 'Giornalista', '338 4455667', 'c.pavan@esempio.it', '', ['stampa', 'media'], 'Chiede i comunicati entro le 17.', luca),
-    c('Stefano Bortolin', 'Libero professionista', 'Consulente informatico', '349 1010101', 'stefano@bortolin.dev', 'Via Grigoletti 72, Pordenone', ['fornitore', 'informatica'], '', guido),
-    c('Parrocchia San Marco', 'Parrocchia San Marco', 'Segreteria parrocchiale', '0434 520355', 'sanmarco@esempio.it', 'Piazza San Marco 1, Pordenone', ['associazione'], 'Sala disponibile il martedì e il giovedì.', maria)
-  ];
-  const co = (i) => a.contatti[i].id;
-  const attivita = (titolo, descrizione, stato, priorita, scadenzaGiorni, creatoDa, contatto, partecipanti, giorniCreazione, opzioni = {}) => {
-    const id = nuovoId();
-    const creato = giorniFa(giorniCreazione, 9);
-    const scadenza = scadenzaGiorni === null ? null : oggiArchivio(scadenzaGiorni);
-    const voce = {
-      id, titolo, descrizione, stato, priorita, scadenza, contatto_id:contatto,
-      creato_da:creatoDa, creato_il:creato, aggiornato_il:giorniFa(Math.max(0, giorniCreazione - 2), 15),
-      completata_il:null, completata_da:null
-    };
-    if (stato === 'completata') {
-      voce.completata_il = opzioni.completataGiorniFa != null ? giorniFa(opzioni.completataGiorniFa, 16) : giorniFa(1, 16);
-      voce.completata_da = opzioni.completataDa ?? creatoDa;
-    }
-    a.attivita.push(voce);
-    a.registro_eventi.push({ id:nuovoId(), attivita_id:id, utente_id:creatoDa, azione:'creata', creato_il:creato });
-    partecipanti.forEach((p, i) => {
-      a.partecipanti.push({ attivita_id:id, utente_id:p, invitato_il:giorniFa(giorniCreazione, 9 + i + 1), invitato_da:creatoDa });
-      a.registro_eventi.push({ id:nuovoId(), attivita_id:id, utente_id:creatoDa, azione:'partecipante_aggiunto', creato_il:giorniFa(giorniCreazione, 9 + i + 1) });
-    });
-    if (stato === 'completata') a.registro_eventi.push({ id:nuovoId(), attivita_id:id, utente_id:voce.completata_da, azione:'completata', creato_il:voce.completata_il });
-    return id;
-  };
-  const commento = (attivitaId, autore, testo, giorni, ora = 11) => {
-    const quando = giorniFa(giorni, ora);
-    a.commenti.push({ id:nuovoId(), attivita_id:attivitaId, autore_id:autore, testo, creato_il:quando });
-    a.registro_eventi.push({ id:nuovoId(), attivita_id:attivitaId, utente_id:autore, azione:'commento_aggiunto', creato_il:quando });
-  };
-  const allegato = (attivitaId, etichetta, indirizzo, chi, giorni) => {
-    a.allegati.push({ id:nuovoId(), attivita_id:attivitaId, tipo:'collegamento', etichetta, indirizzo, creato_da:chi, creato_il:giorniFa(giorni, 12) });
-    a.registro_eventi.push({ id:nuovoId(), attivita_id:attivitaId, utente_id:chi, azione:'allegato_aggiunto', creato_il:giorniFa(giorni, 12) });
-  };
-
-  const a1 = attivita('Preparare la relazione per la Giunta comunale', 'Raccogliere i dati del primo semestre e impaginare la relazione da consegnare in Comune.', 'in_corso', 'alta', 3, guido, co(0), [maria], 12);
-  commento(a1, maria, 'Ho recuperato i dati dei primi quattro mesi, mancano maggio e giugno.', 2, 10);
-  commento(a1, guido, 'Perfetto, li chiedo io a Marchetti.', 2, 15);
-  allegato(a1, 'Modello di relazione (Google Documenti)', 'https://docs.google.com/', maria, 5);
-  const a2 = attivita('Telefonare alla Pro Loco per la sagra di settembre', 'Confermare la presenza al banchetto e chiedere il numero di sedie disponibili.', 'da_fare', 'media', 1, maria, co(1), [], 4);
-  const a3 = attivita('Rinnovo contratto assistenza informatica', 'Il contratto scade a fine mese: chiedere preventivo aggiornato e confrontarlo con quello dell’anno scorso.', 'da_fare', 'urgente', -2, guido, co(10), [luca], 15);
-  commento(a3, luca, 'Ho chiesto il preventivo, risponde entro venerdì.', 1, 9);
-  const a4 = attivita('Comunicato stampa sull’apertura dello sportello', 'Scrivere e inviare il comunicato alla stampa locale.', 'sospesa', 'media', 6, luca, co(9), [guido], 8);
-  commento(a4, guido, 'Aspettiamo la conferma della data dal Comune prima di uscire.', 3, 18);
-  const a5 = attivita('Pagare la fattura della tipografia', 'Fattura n. 122 per i volantini dell’assemblea.', 'completata', 'alta', -6, guido, co(5), [], 20, { completataGiorniFa:4 });
-  const a6 = attivita('Incontro con la dirigente scolastica', 'Presentare il progetto di sostegno agli studenti con DSA per l’anno scolastico.', 'in_corso', 'alta', 5, luca, co(3), [maria, guido], 10);
-  commento(a6, maria, 'Porto io le schede di presentazione stampate.', 1, 12);
-  allegato(a6, 'Presentazione del progetto', 'https://example.org/progetto-dsa.pdf', luca, 4);
-  const a7 = attivita('Candidatura al bando regionale Lavoro e inclusione', 'Verificare i requisiti, preparare la documentazione e caricarla sul portale entro la scadenza.', 'da_fare', 'urgente', 9, guido, co(6), [luca, maria], 6);
-  allegato(a7, 'Testo del bando', 'https://www.regione.fvg.it/', guido, 6);
-  const a8 = attivita('Organizzare la riunione mensile dei volontari', 'Prenotare la sala parrocchiale e ordinare il rinfresco.', 'da_fare', 'bassa', 14, maria, co(11), [], 3);
-  const a9 = attivita('Aggiornare l’elenco dei soci', 'Inserire le nuove iscrizioni e segnare chi non ha rinnovato.', 'in_corso', 'media', 20, maria, null, [luca], 9);
-  const a10 = attivita('Verifica assicurazione volontari', 'Controllare la copertura assicurativa per i volontari dell’ospedale.', 'da_fare', 'alta', -5, luca, co(7), [], 18);
-  const a11 = attivita('Ordine nuovi volantini', 'Ristampa di 500 volantini con il programma autunnale.', 'completata', 'media', -10, maria, co(5), [guido], 25, { completataGiorniFa:9, completataDa:maria });
-  const a12 = attivita('Parere legale sullo statuto', 'Chiedere allo studio Furlan una lettura del nuovo statuto prima dell’assemblea.', 'sospesa', 'bassa', null, guido, co(2), [], 30);
-  const a13 = attivita('Rimborso spese trasferta Trieste', 'Raccogliere gli scontrini e compilare il modulo.', 'completata', 'bassa', -15, luca, null, [], 22, { completataGiorniFa:14 });
-  const a14 = attivita('Preparare il catering per l’assemblea', 'Chiedere al Bar Centrale un preventivo per 40 persone.', 'da_fare', 'media', 12, guido, co(8), [maria], 2);
-  const a15 = attivita('Coordinamento con la cooperativa Il Ponte', 'Definire il calendario congiunto delle attività di autunno.', 'in_corso', 'media', 8, maria, co(4), [guido], 7);
-  commento(a15, guido, 'Ho proposto a De Luca di vederci martedì.', 0, 9);
-  const a16 = attivita('Archiviare i verbali del 2025', 'Scansionare e caricare i verbali nella cartella condivisa.', 'da_fare', 'bassa', 30, luca, null, [], 5);
-  const a17 = attivita('Aggiornamento sito web', 'Pubblicare le foto dell’ultimo evento e correggere gli orari di apertura.', 'completata', 'media', -3, guido, co(10), [luca], 11, { completataGiorniFa:2, completataDa:luca });
-  const a18 = attivita('Richiesta patrocinio al Comune', 'Compilare il modulo di richiesta di patrocinio per la rassegna d’autunno.', 'da_fare', 'alta', 0, maria, co(0), [guido], 1);
-  void a2; void a5; void a8; void a9; void a10; void a11; void a12; void a13; void a14; void a16; void a17; void a18;
-  return a;
 }
 
 /* =====================================================================
@@ -820,6 +743,7 @@ function alternaTema() {
   localStorage.setItem(CHIAVI_LOCALI.tema, nuovo);
 }
 function mostraSchermata(nome) {
+  $('#schermata-primo-avvio').hidden = nome !== 'primo-avvio';
   $('#schermata-accesso').hidden = nome !== 'accesso';
   $('#applicazione').hidden = nome !== 'applicazione';
   if (nome !== 'applicazione') { chiudiPannello(); chiudiModale(); }
@@ -1226,7 +1150,7 @@ function disegnaProfilo() {
         <button type="button" class="secondario" id="pulsante-importa-archivio">Ripristina da una copia</button>
         <input id="file-importa-archivio" type="file" accept="application/json,.json" hidden>
       </div>
-      ${amministratore() ? `<div style="margin-top:.8rem"><button type="button" class="pericolo" id="pulsante-azzera-archivio">Svuota l’archivio e ricarica i dati dimostrativi</button></div>` : ''}
+      ${amministratore() ? `<div style="margin-top:.8rem"><button type="button" class="pericolo" id="pulsante-azzera-archivio">Svuota tutto l’archivio</button></div>` : ''}
     </div>
     <div class="scheda" style="max-width:34rem">
       <h2>Sessione</h2>
@@ -1546,11 +1470,11 @@ function importaArchivio(file, poi) {
 }
 function azzeraArchivio() {
   apriModale('Svuotare l’archivio?',
-    '<p>Tutte le attività, i contatti e gli utenti di questo browser saranno cancellati e sostituiti dai dati dimostrativi. Scarica prima una copia di sicurezza se vuoi conservarli.</p>',
+    '<p>Tutte le attività, i contatti e gli utenti di questo browser saranno cancellati e si tornerà alla schermata iniziale. Scarica prima una copia di sicurezza se vuoi conservarli.</p>',
     `<button type="button" class="pericolo" id="conferma-si">Sì, svuota</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
   $('#conferma-si').addEventListener('click', () => {
-    archivio = creaDatiDimostrativi(); salvaArchivio(); chiudiModale(); esci();
-    avvisa('Archivio azzerato con i dati dimostrativi.', 'bene');
+    archivio = archivioVuoto(); salvaArchivio(); chiudiModale(); esci();
+    avvisa('Archivio svuotato.', 'bene');
   });
   $('#conferma-no').addEventListener('click', chiudiModale);
 }
@@ -1558,6 +1482,11 @@ function esci() {
   localStorage.removeItem(CHIAVI_LOCALI.sessione);
   stato.profilo = null;
   chiudiPannello(); chiudiModale();
+  mostraIngresso();
+}
+// Schermata giusta per chi non è collegato: primo avvio se non c'è nessun utente
+function mostraIngresso() {
+  if (!archivio.profili.length) { mostraSchermata('primo-avvio'); $('#pa-nome').focus(); return; }
   disegnaAccesso();
   mostraSchermata('accesso');
 }
@@ -1592,6 +1521,7 @@ document.addEventListener('click', (evento) => {
   const entra = dentro('[data-entra]');
   if (entra) { entraCome(entra.dataset.entra); return; }
   if (dentro('#pulsante-importa-accesso')) { $('#file-importa-accesso').click(); return; }
+  if (dentro('#pulsante-importa-primo-avvio')) { $('#file-importa-primo-avvio').click(); return; }
 
   // Cornice
   if (dentro('#pulsante-menu')) { alternaMenu(!$('#barra-laterale').classList.contains('aperta')); return; }
@@ -1761,7 +1691,9 @@ document.addEventListener('change', (evento) => {
   }
   if (evento.target.id === 'det-file') { caricaDalPannello(evento.target.files[0]); return; }
   if (evento.target.id === 'file-importa-archivio') { importaArchivio(evento.target.files[0], () => { esci(); }); evento.target.value = ''; return; }
-  if (evento.target.id === 'file-importa-accesso') { importaArchivio(evento.target.files[0], () => { disegnaAccesso(); }); evento.target.value = ''; return; }
+  if (evento.target.id === 'file-importa-accesso' || evento.target.id === 'file-importa-primo-avvio') {
+    importaArchivio(evento.target.files[0], mostraIngresso); evento.target.value = ''; return;
+  }
 });
 
 // Invio nella finestra modale conferma (non nelle aree di testo)
@@ -1779,7 +1711,7 @@ const alCambiamentoAltrui = conRitardo(() => {
     const letto = JSON.parse(testo);
     if (!archivioValido(letto)) return;
     archivio = letto;
-    if (!stato.profilo) { disegnaAccesso(); return; }
+    if (!stato.profilo) { mostraIngresso(); return; }
     stato.profilo = leggiProfilo(stato.profilo.id);
     if (!stato.profilo || !stato.profilo.attivo) { esci(); avvisa('Il tuo utente è stato modificato: accedi di nuovo.', 'errore'); return; }
     contaNotifiche(); aggiornaCampanella();
@@ -1817,9 +1749,20 @@ function avvia() {
   const sessione = localStorage.getItem(CHIAVI_LOCALI.sessione);
   const p = sessione ? leggiProfilo(sessione) : null;
   if (p && p.attivo) { entraCome(p.id); return; }
-  disegnaAccesso();
-  mostraSchermata('accesso');
+  mostraIngresso();
 }
+
+// Primo avvio: crea l'amministratore ed entra
+$('#modulo-primo-avvio').addEventListener('submit', (evento) => {
+  evento.preventDefault();
+  const dati = { nome: $('#pa-nome').value.trim(), cognome: $('#pa-cognome').value.trim(),
+    posta_elettronica: $('#pa-posta').value.trim().toLowerCase(), telefono: '', ruolo: 'amministratore' };
+  if (!dati.nome || !dati.cognome || !/^\S+@\S+\.\S+$/.test(dati.posta_elettronica)) {
+    avvisa('Compila nome, cognome e un indirizzo di posta elettronica valido.', 'errore'); return;
+  }
+  try { const id = creaUtente(dati); entraCome(id); avvisa(`Benvenuto, ${dati.nome}. Aggiungi i colleghi dalla sezione Utenti.`, 'bene', 7000); }
+  catch (errore) { avvisa(spiegaErrore(errore, 'creazione dell’utente'), 'errore'); }
+});
 avvia();
 </script>
 </body>
