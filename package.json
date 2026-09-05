@@ -1,0 +1,8 @@
+{
+  "name": "gestionale-attivita",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nodemailer": "^7.0.0"
+  }
+}

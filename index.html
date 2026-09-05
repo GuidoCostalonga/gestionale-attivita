@@ -730,7 +730,7 @@ const MODALITA_AVVISI = {
   manuale:    'Mostra un pulsante per aprire il messaggio',
   spento:     'Nessun avviso'
 };
-const SERVIZIO_POSTA_PREDEFINITO = 'https://gestionale-posta.guidocostalonga.workers.dev';
+const SERVIZIO_POSTA_PREDEFINITO = '';
 function servizioPosta() {
   const i = archivio?.impostazioni ?? {};
   return (i.servizioUrl && i.servizioChiave) ? { url: i.servizioUrl.replace(/\/+$/, ''), chiave: i.servizioChiave } : null;
@@ -1287,9 +1287,9 @@ function disegnaProfilo() {
     </div>
     ${amministratore() ? `<div class="scheda" style="max-width:34rem;margin-bottom:1rem">
       <h2>Servizio di posta del gruppo</h2>
-      <p class="nota">Un piccolo servizio esterno spedisce gli avvisi dalla casella del gruppo, così partono da soli senza aprire il programma di posta. Indirizzo e chiave restano nell’archivio (e nelle copie di sicurezza), quindi valgono per tutti gli utenti di questo archivio.</p>
+      <p class="nota">Un piccolo servizio esterno (la funzione <code>/invia</code> del sito su Netlify, vedi la cartella <code>netlify</code> del progetto) spedisce gli avvisi dalla casella del gruppo, così partono da soli senza aprire il programma di posta. Indirizzo e chiave restano nell’archivio (e nelle copie di sicurezza), quindi valgono per tutti gli utenti di questo archivio.</p>
       <div class="campo"><label for="ser-url">Indirizzo del servizio</label>
-        <input id="ser-url" type="url" value="${proteggi(archivio.impostazioni.servizioUrl ?? SERVIZIO_POSTA_PREDEFINITO)}" placeholder="https://…workers.dev"></div>
+        <input id="ser-url" type="url" value="${proteggi(archivio.impostazioni.servizioUrl ?? SERVIZIO_POSTA_PREDEFINITO)}" placeholder="https://nome-sito.netlify.app/invia"></div>
       <div class="campo"><label for="ser-chiave">Chiave del servizio</label>
         <input id="ser-chiave" type="password" value="${proteggi(archivio.impostazioni.servizioChiave ?? '')}" autocomplete="off" placeholder="La chiave consegnata con il servizio"></div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">

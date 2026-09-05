@@ -1,0 +1,7 @@
+# Netlify serve la pagina e ospita la funzione che spedisce gli avvisi via SMTP.
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
