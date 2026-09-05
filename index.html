@@ -348,7 +348,8 @@ const CHIAVI_LOCALI = {
   archivio: 'gestionale-locale.archivio',
   sessione: 'gestionale-locale.sessione',
   tema:     'gestionale-locale.tema',
-  vista:    'gestionale-locale.vista'
+  vista:    'gestionale-locale.vista',
+  avvisi:   'gestionale-locale.avvisi-posta'
 };
 
 const PER_PAGINA = 50;
@@ -605,6 +606,7 @@ function aggiornaAttivita(id, dati) {
   a.aggiornato_il = adesso();
   azioni.forEach((azione) => registra(id, azione));
   salvaArchivio();
+  return [...azioni];
 }
 
 function cancellaAttivita(id) {
@@ -714,6 +716,92 @@ function segnaNotificheLette() {
   stato.profilo.ultima_lettura_notifiche = adesso();
   stato.notifiche = { attivita:0, commenti:0, voci:[] };
   salvaArchivio();
+}
+
+/* =====================================================================
+   4b. AVVISI PER POSTA ELETTRONICA
+   La pagina non ha un server dietro: gli avvisi si spediscono con il
+   programma di posta del dispositivo, aprendo un messaggio già compilato
+   con destinatari, oggetto e testo. A premere «Invia» è la persona.
+   ===================================================================== */
+const MODALITA_AVVISI = {
+  automatico: 'Apri subito il messaggio nel programma di posta',
+  manuale:    'Mostra un pulsante per aprire il messaggio',
+  spento:     'Nessun avviso'
+};
+function modalitaAvvisi() {
+  const m = localStorage.getItem(CHIAVI_LOCALI.avvisi);
+  return MODALITA_AVVISI[m] ? m : 'automatico';
+}
+function indirizzoApplicazione() {
+  return /^https?:/.test(location.protocol) ? location.origin + location.pathname : '';
+}
+function firmaAvviso() {
+  const link = indirizzoApplicazione();
+  return `\n\n—\nMessaggio preparato da «${IDENTITA.titolo}»${link ? `: ${link}` : ''}.`;
+}
+function componiMailto(destinatari, oggetto, corpo) {
+  return `mailto:${destinatari.join(',')}?subject=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(corpo)}`;
+}
+function apriProgrammaPosta(url) {
+  const a = document.createElement('a');
+  a.href = url; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove();
+}
+// Avviso in alto con il pulsante che apre il messaggio (modalità manuale)
+function avvisaConPosta(messaggio, url) {
+  const nodo = document.createElement('div');
+  nodo.className = 'avviso';
+  nodo.style.display = 'flex'; nodo.style.alignItems = 'center'; nodo.style.gap = '.6rem';
+  nodo.innerHTML = `<span style="flex:1">${proteggi(messaggio)}</span>
+    <a class="principale" style="display:inline-block;padding:.3rem .7rem;text-decoration:none;white-space:nowrap" href="${proteggi(url)}">Apri il messaggio</a>`;
+  nodo.querySelector('a').addEventListener('click', () => setTimeout(() => nodo.remove(), 500));
+  $('#avvisi').append(nodo);
+  setTimeout(() => nodo.remove(), 25000);
+}
+// Prepara l'avviso secondo la preferenza scelta; vero se qualcosa è stato preparato
+function inviaAvvisoPosta(destinatari, oggetto, corpo) {
+  const elenco = [...new Set(destinatari.filter((d) => d && /\S+@\S+/.test(d)))];
+  if (!elenco.length) return false;
+  const modo = modalitaAvvisi();
+  if (modo === 'spento') return false;
+  const url = componiMailto(elenco, oggetto, corpo + firmaAvviso());
+  if (modo === 'automatico') { apriProgrammaPosta(url); return true; }
+  avvisaConPosta(`Avviso pronto per ${elenco.length === 1 ? elenco[0] : elenco.length + ' persone'}.`, url);
+  return true;
+}
+// Chi va avvisato di un'attività: chi l'ha creata e i partecipanti, tranne chi sta agendo
+function destinatariAttivita(attivitaId, altri = []) {
+  const a = archivio.attivita.find((x) => x.id === attivitaId);
+  if (!a) return [];
+  const ids = new Set([a.creato_da,
+    ...archivio.partecipanti.filter((p) => p.attivita_id === attivitaId).map((p) => p.utente_id), ...altri]);
+  ids.delete(stato.profilo.id);
+  return [...ids].map(leggiProfilo).filter((p) => p && p.attivo).map((p) => p.posta_elettronica);
+}
+function riassuntoAttivita(a) {
+  const contatto = archivio.contatti.find((c) => c.id === a.contatto_id);
+  return `Attività: ${a.titolo}\nStato: ${STATI[a.stato]} · Priorità: ${PRIORITA[a.priorita]} · Scadenza: ${a.scadenza ? dataItaliana(a.scadenza) : 'nessuna'}`
+       + (contatto ? `\nContatto collegato: ${contatto.nome}` : '')
+       + (a.descrizione ? `\n\n${a.descrizione.slice(0, 600)}` : '');
+}
+// Avviso di variazione: «cosa» è la frase al passato, per esempio «ha scritto un commento»
+function avvisaVariazione(attivitaId, cosa, dettaglio = '', altriDestinatari = []) {
+  const a = archivio.attivita.find((x) => x.id === attivitaId);
+  if (!a) return false;
+  const chi = `${stato.profilo.nome} ${stato.profilo.cognome}`;
+  const corpo = `Ciao,\n${chi} ${cosa} nell’attività «${a.titolo}».`
+    + (dettaglio ? `\n\n${dettaglio}` : '') + `\n\n${riassuntoAttivita(a)}`;
+  return inviaAvvisoPosta(destinatariAttivita(attivitaId, altriDestinatari), `[Attività] ${a.titolo} — ${cosa}`, corpo);
+}
+// Avviso a un utente appena registrato (o da avvisare di nuovo)
+function avvisaNuovoUtente(p) {
+  if (!p) return false;
+  const link = indirizzoApplicazione();
+  const chi = `${stato.profilo.nome} ${stato.profilo.cognome}`;
+  const corpo = `Ciao ${p.nome},\n${chi} ti ha registrato in «${IDENTITA.titolo}» con il ruolo di ${p.ruolo === 'amministratore' ? 'amministratore' : 'collaboratore'}.`
+    + `\n\nPer entrare apri ${link || 'il gestionale'} e scegli il tuo nome nella schermata di accesso.`
+    + `\n\nDati registrati:\nNome: ${p.nome} ${p.cognome}\nPosta elettronica: ${p.posta_elettronica}${p.telefono ? `\nTelefono: ${p.telefono}` : ''}`;
+  return inviaAvvisoPosta([p.posta_elettronica], `Sei stato registrato in «${IDENTITA.titolo}»`, corpo);
 }
 
 /* =====================================================================
@@ -1117,6 +1205,7 @@ function rigaUtente(p) {
       <td>${quante} aperte</td>
       <td><div class="azioni">
         <button type="button" class="secondario" data-modifica-utente="${p.id}">Modifica</button>
+        ${io ? '' : `<button type="button" class="secondario" data-avvisa-utente="${p.id}" title="Prepara la mail di avviso con il collegamento al gestionale">Invia avviso</button>`}
         <button type="button" class="secondario" data-cambia-ruolo="${p.id}" ${io ? 'disabled' : ''}>Cambia ruolo</button>
         ${p.attivo
           ? `<button type="button" class="pericolo" data-disattiva="${p.id}" ${io ? 'disabled' : ''}>Disattiva</button>`
@@ -1151,6 +1240,13 @@ function disegnaProfilo() {
         <input id="file-importa-archivio" type="file" accept="application/json,.json" hidden>
       </div>
       ${amministratore() ? `<div style="margin-top:.8rem"><button type="button" class="pericolo" id="pulsante-azzera-archivio">Svuota tutto l’archivio</button></div>` : ''}
+    </div>
+    <div class="scheda" style="max-width:34rem;margin-bottom:1rem">
+      <h2>Avvisi per posta elettronica</h2>
+      <p class="nota">Quando registri un utente o cambi qualcosa in un’attività (stato, scadenza, commenti, partecipanti, allegati), l’app prepara un messaggio per le persone interessate e lo passa al programma di posta di questo dispositivo: a premere «Invia» sei tu. La pagina non ha un server e non può spedire da sola.</p>
+      <div class="campo"><label for="pro-avvisi">Come comportarsi</label>
+        <select id="pro-avvisi">${Object.entries(MODALITA_AVVISI).map(([v, t]) => `<option value="${v}" ${modalitaAvvisi() === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <p class="nota" style="margin:0">Il tuo indirizzo, ${proteggi(p.posta_elettronica)}, è quello a cui gli altri manderanno gli avvisi che ti riguardano.</p>
     </div>
     <div class="scheda" style="max-width:34rem">
       <h2>Sessione</h2>
@@ -1299,11 +1395,23 @@ function salvaDalPannello() {
   const titolo = $('#det-titolo').value.trim();
   if (!titolo) { avvisa('Il titolo non può restare vuoto.', 'errore'); $('#det-titolo').focus(); return; }
   try {
-    aggiornaAttivita(id, {
+    const prima = { ...archivio.attivita.find((x) => x.id === id) };
+    const azioni = aggiornaAttivita(id, {
       titolo, descrizione: $('#det-descrizione').value.trim(), stato: $('#det-stato').value,
       priorita: $('#det-priorita').value, scadenza: $('#det-scadenza').value, contatto_id: $('#det-contatto').value
     });
     avvisa('Modifiche salvate.', 'bene');
+    if (azioni.length) {
+      const dopo = archivio.attivita.find((x) => x.id === id);
+      const frasi = {
+        completata: 'ha completato l’attività', riaperta: 'ha riaperto l’attività',
+        stato_modificato: `ha cambiato lo stato da «${STATI[prima.stato]}» a «${STATI[dopo.stato]}»`,
+        scadenza_modificata: `ha cambiato la scadenza da ${prima.scadenza ? dataItaliana(prima.scadenza) : 'nessuna'} a ${dopo.scadenza ? dataItaliana(dopo.scadenza) : 'nessuna'}`,
+        modificata: 'ha modificato titolo, descrizione, priorità o contatto'
+      };
+      const righe = azioni.map((z) => frasi[z]);
+      avvisaVariazione(id, righe.length === 1 ? righe[0] : 'ha modificato l’attività', righe.length > 1 ? righe.map((r) => `• ${r}`).join('\n') : '');
+    }
     apriAttivita(id); ridisegna();
   } catch (errore) { avvisa(spiegaErrore(errore, 'salvataggio'), 'errore'); }
 }
@@ -1313,8 +1421,11 @@ function cambiaStatoAttivita(id, nuovoStato) {
   const d = leggiDettaglioAttivita(id);
   if (!possoModificare(d)) { avvisa('Non hai i permessi per modificare questa attività.', 'errore'); return; }
   try {
+    const precedente = a.stato;
     aggiornaAttivita(id, { stato: nuovoStato });
     avvisa(nuovoStato === 'completata' ? 'Attività completata.' : `Attività spostata in «${STATI[nuovoStato]}».`, 'bene');
+    avvisaVariazione(id, nuovoStato === 'completata' ? 'ha completato l’attività'
+      : precedente === 'completata' ? 'ha riaperto l’attività' : `ha spostato l’attività in «${STATI[nuovoStato]}»`);
     if (stato.dettaglioAttivita?.attivita.id === id) apriAttivita(id);
     ridisegna();
   } catch (errore) { avvisa(spiegaErrore(errore, 'cambio di stato'), 'errore'); }
@@ -1323,7 +1434,7 @@ function commenta() {
   const testo = $('#det-commento').value.trim();
   if (!testo) { avvisa('Scrivi qualcosa prima di aggiungere il commento.', 'errore'); return; }
   const id = stato.dettaglioAttivita.attivita.id;
-  try { scriviCommento(id, testo); apriAttivita(id); if (stato.sezione === 'cruscotto') ridisegna(); }
+  try { scriviCommento(id, testo); apriAttivita(id); if (stato.sezione === 'cruscotto') ridisegna(); avvisaVariazione(id, 'ha scritto un commento', testo); }
   catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del commento'), 'errore'); }
 }
 function aggiungiCollegamento() {
@@ -1331,7 +1442,7 @@ function aggiungiCollegamento() {
   const etichetta = $('#det-etichetta').value.trim() || indirizzo;
   if (!/^https?:\/\/\S+/i.test(indirizzo)) { avvisa('Inserisci un indirizzo web che inizi con http:// o https://.', 'errore'); return; }
   const id = stato.dettaglioAttivita.attivita.id;
-  try { aggiungiAllegato(id, 'collegamento', etichetta, indirizzo); apriAttivita(id); }
+  try { aggiungiAllegato(id, 'collegamento', etichetta, indirizzo); apriAttivita(id); avvisaVariazione(id, 'ha aggiunto un collegamento', `${etichetta}\n${indirizzo}`); }
   catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del collegamento'), 'errore'); }
 }
 function caricaDalPannello(file) {
@@ -1340,7 +1451,7 @@ function caricaDalPannello(file) {
   const id = stato.dettaglioAttivita.attivita.id;
   const lettore = new FileReader();
   lettore.onload = () => {
-    try { aggiungiAllegato(id, 'file', file.name, lettore.result, { mime:file.type, dimensione:file.size }); apriAttivita(id); avvisa('File allegato.', 'bene'); }
+    try { aggiungiAllegato(id, 'file', file.name, lettore.result, { mime:file.type, dimensione:file.size }); apriAttivita(id); avvisa('File allegato.', 'bene'); avvisaVariazione(id, 'ha allegato un file', `${file.name} (il file resta nell’archivio del gestionale)`); }
     catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del file'), 'errore'); }
   };
   lettore.onerror = () => avvisa('Non è stato possibile leggere il file.', 'errore');
@@ -1369,6 +1480,7 @@ function creaNuovaAttivita() {
     avvisa('Attività creata.', 'bene');
     if (stato.sezione !== 'attivita' && stato.sezione !== 'cruscotto') vaiA('attivita'); else ridisegna();
     apriAttivita(id);
+    if (partecipanti.length) avvisaVariazione(id, 'ha creato l’attività e ti ha invitato a partecipare');
   } catch (errore) { avvisa(spiegaErrore(errore, 'creazione'), 'errore'); }
 }
 
@@ -1420,13 +1532,16 @@ function salvaModuloUtente(id) {
   try {
     if (id) {
       const p = leggiProfilo(id);
+      if (!p) throw new Error('Utente non trovato.');
       if (archivio.profili.some((x) => x.id !== id && x.posta_elettronica.toLowerCase() === dati.posta_elettronica)) throw new Error('Esiste già un utente con questa posta elettronica.');
       if (id === stato.profilo.id) delete dati.ruolo;
       Object.assign(p, dati);
       salvaArchivio();
-    } else creaUtente(dati);
+    }
+    let avvisato = false;
+    if (!id) { const nuovo = creaUtente(dati); avvisato = avvisaNuovoUtente(leggiProfilo(nuovo)); }
     chiudiModale();
-    avvisa(id ? 'Utente aggiornato.' : `Utente creato. ${dati.nome} può entrare scegliendo il suo nome nella schermata di accesso.`, 'bene', 7000);
+    avvisa(id ? 'Utente aggiornato.' : `Utente creato. ${dati.nome} può entrare scegliendo il suo nome nella schermata di accesso.${avvisato ? ' Avviso per posta preparato.' : ''}`, 'bene', 7000);
     ridisegna();
   } catch (errore) { avvisa(errore.message || spiegaErrore(errore, 'salvataggio dell’utente'), 'errore'); }
 }
@@ -1576,14 +1691,30 @@ document.addEventListener('click', (evento) => {
     if (dentro('#pulsante-commenta')) { commenta(); return; }
     if (dentro('#pulsante-collegamento')) { aggiungiCollegamento(); return; }
     const togli = dentro('[data-togli]');
-    if (togli) { try { togliPartecipante(id, togli.dataset.togli); apriAttivita(id); } catch (e) { avvisa(spiegaErrore(e, 'rimozione'), 'errore'); } return; }
+    if (togli) {
+      const tolto = togli.dataset.togli;
+      try { togliPartecipante(id, tolto); apriAttivita(id); avvisaVariazione(id, `ha tolto ${nominativo(tolto)} dai partecipanti`, '', [tolto]); }
+      catch (e) { avvisa(spiegaErrore(e, 'rimozione'), 'errore'); }
+      return;
+    }
     const togliG = dentro('[data-togli-allegato]');
-    if (togliG) { try { togliAllegato(togliG.dataset.togliAllegato); apriAttivita(id); } catch (e) { avvisa(spiegaErrore(e, 'rimozione'), 'errore'); } return; }
+    if (togliG) {
+      const etichetta = archivio.allegati.find((g) => g.id === togliG.dataset.togliAllegato)?.etichetta ?? '';
+      try { togliAllegato(togliG.dataset.togliAllegato); apriAttivita(id); avvisaVariazione(id, 'ha tolto un allegato', etichetta); }
+      catch (e) { avvisa(spiegaErrore(e, 'rimozione'), 'errore'); }
+      return;
+    }
     const scarica = dentro('[data-scarica]');
     if (scarica) { scaricaAllegato(scarica.dataset.scarica); return; }
     if (dentro('#pulsante-cancella-attivita')) {
       chiediConferma(`l’attività «${stato.dettaglioAttivita.attivita.titolo}»`, () => {
-        try { cancellaAttivita(id); chiudiPannello(); avvisa('Attività eliminata.', 'bene'); ridisegna(); }
+        const destinatari = destinatariAttivita(id);
+        const titolo = stato.dettaglioAttivita.attivita.titolo;
+        try {
+          cancellaAttivita(id); chiudiPannello(); avvisa('Attività eliminata.', 'bene'); ridisegna();
+          inviaAvvisoPosta(destinatari, `[Attività] ${titolo} — eliminata`,
+            `Ciao,\n${stato.profilo.nome} ${stato.profilo.cognome} ha eliminato l’attività «${titolo}».`);
+        }
         catch (e) { avvisa(spiegaErrore(e, 'eliminazione'), 'errore'); }
       });
       return;
@@ -1615,6 +1746,8 @@ document.addEventListener('click', (evento) => {
 
   // Utenti
   if (dentro('#pulsante-nuovo-utente')) { apriModuloUtente(null); return; }
+  const avvU = dentro('[data-avvisa-utente]');
+  if (avvU) { if (!avvisaNuovoUtente(leggiProfilo(avvU.dataset.avvisaUtente))) avvisa('Gli avvisi per posta sono spenti: attivali dal Profilo.', 'errore'); return; }
   const modU = dentro('[data-modifica-utente]');
   if (modU) { apriModuloUtente(leggiProfilo(modU.dataset.modificaUtente)); return; }
   const ruolo = dentro('[data-cambia-ruolo]');
@@ -1686,10 +1819,13 @@ document.addEventListener('change', (evento) => {
   if (evento.target.id === 'filtro-ordine') { stato.ordine = evento.target.value; vaiA('attivita'); return; }
   if (evento.target.id === 'det-invita' && evento.target.value) {
     const id = stato.dettaglioAttivita.attivita.id;
-    try { invitaPartecipante(id, evento.target.value); apriAttivita(id); } catch (e) { avvisa(spiegaErrore(e, 'invito'), 'errore'); }
+    const invitato = evento.target.value;
+    try { invitaPartecipante(id, invitato); apriAttivita(id); avvisaVariazione(id, `ha aggiunto ${nominativo(invitato)} fra i partecipanti`); }
+    catch (e) { avvisa(spiegaErrore(e, 'invito'), 'errore'); }
     return;
   }
   if (evento.target.id === 'det-file') { caricaDalPannello(evento.target.files[0]); return; }
+  if (evento.target.id === 'pro-avvisi') { localStorage.setItem(CHIAVI_LOCALI.avvisi, evento.target.value); avvisa('Preferenza sugli avvisi salvata.', 'bene'); return; }
   if (evento.target.id === 'file-importa-archivio') { importaArchivio(evento.target.files[0], () => { esci(); }); evento.target.value = ''; return; }
   if (evento.target.id === 'file-importa-accesso' || evento.target.id === 'file-importa-primo-avvio') {
     importaArchivio(evento.target.files[0], mostraIngresso); evento.target.value = ''; return;
