@@ -5,3 +5,8 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# Con il collegamento «Deploy to Netlify» queste due variabili vengono chieste durante la creazione del sito.
+[template.environment]
+  SMTP_PASSWORD = "Password della casella info@costalonga.org"
+  CHIAVE_SERVIZIO = "Parola d'ordine che il gestionale manda in ogni richiesta (a piacere, lunga)"
