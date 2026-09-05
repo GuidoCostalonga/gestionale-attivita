@@ -429,7 +429,7 @@ function scaricaTesto(nomeFile, contenuto, tipo) {
 let archivio = null;
 
 function archivioVuoto() {
-  return { versione:1, profili:[], contatti:[], attivita:[], partecipanti:[], commenti:[], allegati:[], registro_eventi:[] };
+  return { versione:1, impostazioni:{}, profili:[], contatti:[], attivita:[], partecipanti:[], commenti:[], allegati:[], registro_eventi:[] };
 }
 function archivioValido(oggetto) {
   return oggetto && typeof oggetto === 'object'
@@ -443,7 +443,7 @@ function caricaArchivio() {
       const letto = JSON.parse(testo);
       // Gli archivi di prova delle prime versioni usavano indirizzi @esempio.it: si scartano
       const dimostrativo = archivioValido(letto) && letto.profili.some((p) => /@esempio\.it$/i.test(p.posta_elettronica ?? ''));
-      if (archivioValido(letto) && !dimostrativo) { archivio = letto; return; }
+      if (archivioValido(letto) && !dimostrativo) { archivio = letto; archivio.impostazioni ??= {}; return; }
     }
   } catch { /* archivio illeggibile: si ricomincia da vuoto */ }
   archivio = archivioVuoto();
@@ -725,13 +725,47 @@ function segnaNotificheLette() {
    con destinatari, oggetto e testo. A premere «Invia» è la persona.
    ===================================================================== */
 const MODALITA_AVVISI = {
+  servizio:   'Spedisci in automatico dalla casella del gruppo (servizio di posta)',
   automatico: 'Apri subito il messaggio nel programma di posta',
   manuale:    'Mostra un pulsante per aprire il messaggio',
   spento:     'Nessun avviso'
 };
+const SERVIZIO_POSTA_PREDEFINITO = 'https://gestionale-posta.guidocostalonga.workers.dev';
+function servizioPosta() {
+  const i = archivio?.impostazioni ?? {};
+  return (i.servizioUrl && i.servizioChiave) ? { url: i.servizioUrl.replace(/\/+$/, ''), chiave: i.servizioChiave } : null;
+}
 function modalitaAvvisi() {
   const m = localStorage.getItem(CHIAVI_LOCALI.avvisi);
-  return MODALITA_AVVISI[m] ? m : 'automatico';
+  if (m === 'servizio' && !servizioPosta()) return 'automatico';
+  if (MODALITA_AVVISI[m]) return m;
+  return servizioPosta() ? 'servizio' : 'automatico';
+}
+// Spedisce tramite il servizio; in caso di errore lascia comunque aprire il messaggio a mano
+async function inviaTramiteServizio(elenco, oggetto, corpo, urlMailto) {
+  const servizio = servizioPosta();
+  try {
+    const risposta = await fetch(servizio.url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${servizio.chiave}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: elenco, oggetto, testo: corpo, rispondiA: stato.profilo?.posta_elettronica ?? '' })
+    });
+    const dati = await risposta.json().catch(() => ({}));
+    if (!risposta.ok || !dati.ok) throw new Error(dati.errore || `risposta ${risposta.status}`);
+    avvisa(`Avviso spedito a ${elenco.length === 1 ? elenco[0] : elenco.length + ' persone'}.`, 'bene');
+  } catch (errore) {
+    const motivo = navigator.onLine ? (errore.message || 'servizio non raggiungibile') : 'nessuna connessione';
+    avvisaConPosta(`Avviso non spedito (${motivo}). Puoi aprirlo nel programma di posta.`, urlMailto);
+  }
+}
+// Verifica il collegamento con il servizio e riferisce cosa manca
+async function provaServizio(url, chiave) {
+  const risposta = await fetch(url.replace(/\/+$/, ''), { headers: { 'Authorization': `Bearer ${chiave}` } });
+  const dati = await risposta.json();
+  if (!dati.ok || dati.servizio !== 'gestionale-posta') throw new Error('L’indirizzo non risponde come servizio di posta del gestionale.');
+  if (dati.chiave !== 'valida') throw new Error('Il servizio risponde ma la chiave non è quella giusta.');
+  if (!dati.passwordImpostata) return `Collegamento riuscito, mittente ${dati.mittente}. Manca ancora la password della casella sul servizio: finché non c’è, gli avvisi non partono.`;
+  return `Collegamento riuscito: gli avvisi partiranno da ${dati.mittente}.`;
 }
 function indirizzoApplicazione() {
   return /^https?:/.test(location.protocol) ? location.origin + location.pathname : '';
@@ -765,6 +799,7 @@ function inviaAvvisoPosta(destinatari, oggetto, corpo) {
   const modo = modalitaAvvisi();
   if (modo === 'spento') return false;
   const url = componiMailto(elenco, oggetto, corpo + firmaAvviso());
+  if (modo === 'servizio') { inviaTramiteServizio(elenco, oggetto, corpo + firmaAvviso(), url); return true; }
   if (modo === 'automatico') { apriProgrammaPosta(url); return true; }
   avvisaConPosta(`Avviso pronto per ${elenco.length === 1 ? elenco[0] : elenco.length + ' persone'}.`, url);
   return true;
@@ -1245,9 +1280,24 @@ function disegnaProfilo() {
       <h2>Avvisi per posta elettronica</h2>
       <p class="nota">Quando registri un utente o cambi qualcosa in un’attività (stato, scadenza, commenti, partecipanti, allegati), l’app prepara un messaggio per le persone interessate e lo passa al programma di posta di questo dispositivo: a premere «Invia» sei tu. La pagina non ha un server e non può spedire da sola.</p>
       <div class="campo"><label for="pro-avvisi">Come comportarsi</label>
-        <select id="pro-avvisi">${Object.entries(MODALITA_AVVISI).map(([v, t]) => `<option value="${v}" ${modalitaAvvisi() === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
-      <p class="nota" style="margin:0">Il tuo indirizzo, ${proteggi(p.posta_elettronica)}, è quello a cui gli altri manderanno gli avvisi che ti riguardano.</p>
+        <select id="pro-avvisi">${Object.entries(MODALITA_AVVISI).filter(([v]) => v !== 'servizio' || servizioPosta())
+          .map(([v, t]) => `<option value="${v}" ${modalitaAvvisi() === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <p class="nota" style="margin:0">Il tuo indirizzo, ${proteggi(p.posta_elettronica)}, è quello a cui gli altri manderanno gli avvisi che ti riguardano.
+        ${servizioPosta() ? 'Il servizio di posta del gruppo è configurato: gli avvisi possono partire da soli.' : 'Il servizio di posta del gruppo non è configurato: gli avvisi passano dal programma di posta.'}</p>
     </div>
+    ${amministratore() ? `<div class="scheda" style="max-width:34rem;margin-bottom:1rem">
+      <h2>Servizio di posta del gruppo</h2>
+      <p class="nota">Un piccolo servizio esterno spedisce gli avvisi dalla casella del gruppo, così partono da soli senza aprire il programma di posta. Indirizzo e chiave restano nell’archivio (e nelle copie di sicurezza), quindi valgono per tutti gli utenti di questo archivio.</p>
+      <div class="campo"><label for="ser-url">Indirizzo del servizio</label>
+        <input id="ser-url" type="url" value="${proteggi(archivio.impostazioni.servizioUrl ?? SERVIZIO_POSTA_PREDEFINITO)}" placeholder="https://…workers.dev"></div>
+      <div class="campo"><label for="ser-chiave">Chiave del servizio</label>
+        <input id="ser-chiave" type="password" value="${proteggi(archivio.impostazioni.servizioChiave ?? '')}" autocomplete="off" placeholder="La chiave consegnata con il servizio"></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="principale" id="pulsante-salva-servizio">Salva e prova</button>
+        ${servizioPosta() ? '<button type="button" class="pericolo" id="pulsante-togli-servizio">Scollega il servizio</button>' : ''}
+      </div>
+      <p class="nota" id="esito-servizio" style="margin:.6rem 0 0" aria-live="polite"></p>
+    </div>` : ''}
     <div class="scheda" style="max-width:34rem">
       <h2>Sessione</h2>
       <p class="nota">Sei entrato come ${proteggi(p.nome)} ${proteggi(p.cognome)}. Uscendo torni alla scelta della persona.</p>
@@ -1558,6 +1608,26 @@ function salvaProfilo() {
     aggiornaBarraLaterale();
   } catch (errore) { avvisa(spiegaErrore(errore, 'salvataggio'), 'errore'); }
 }
+async function salvaServizio() {
+  const url = $('#ser-url').value.trim().replace(/\/+$/, '');
+  const chiave = $('#ser-chiave').value.trim();
+  const esito = $('#esito-servizio');
+  if (!/^https:\/\/\S+$/.test(url) || !chiave) { avvisa('Servono l’indirizzo https del servizio e la chiave.', 'errore'); return; }
+  esito.textContent = 'Provo il collegamento…';
+  try {
+    const messaggio = await provaServizio(url, chiave);
+    archivio.impostazioni.servizioUrl = url;
+    archivio.impostazioni.servizioChiave = chiave;
+    salvaArchivio();
+    localStorage.setItem(CHIAVI_LOCALI.avvisi, 'servizio');
+    avvisa('Servizio di posta collegato.', 'bene');
+    ridisegna();
+    $('#esito-servizio').textContent = messaggio;
+  } catch (errore) {
+    esito.textContent = navigator.onLine ? (errore.message || 'Il servizio non risponde.') : 'Nessuna connessione.';
+    avvisa('Collegamento non riuscito: niente è stato salvato.', 'errore');
+  }
+}
 function esportaArchivio() {
   scaricaTesto(`gestionale-copia-${oggiArchivio()}.json`, JSON.stringify(archivio, null, 1), 'application/json');
   avvisa('Copia di sicurezza scaricata.', 'bene');
@@ -1574,7 +1644,7 @@ function importaArchivio(file, poi) {
          Sostituirà tutto l’archivio attuale di questo browser.</p>`,
         `<button type="button" class="pericolo" id="conferma-si">Sì, sostituisci</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
       $('#conferma-si').addEventListener('click', () => {
-        archivio = letto; salvaArchivio(); chiudiModale();
+        archivio = letto; archivio.impostazioni ??= {}; salvaArchivio(); chiudiModale();
         avvisa('Archivio ripristinato.', 'bene');
         poi();
       });
@@ -1759,6 +1829,14 @@ document.addEventListener('click', (evento) => {
 
   // Profilo
   if (dentro('#pulsante-salva-profilo')) { salvaProfilo(); return; }
+  if (dentro('#pulsante-salva-servizio')) { salvaServizio(); return; }
+  if (dentro('#pulsante-togli-servizio')) {
+    delete archivio.impostazioni.servizioUrl; delete archivio.impostazioni.servizioChiave;
+    localStorage.removeItem(CHIAVI_LOCALI.avvisi);
+    try { salvaArchivio(); avvisa('Servizio scollegato: gli avvisi tornano al programma di posta.', 'bene'); ridisegna(); }
+    catch (e) { avvisa(spiegaErrore(e, 'salvataggio'), 'errore'); }
+    return;
+  }
   if (dentro('#pulsante-esporta-archivio')) { esportaArchivio(); return; }
   if (dentro('#pulsante-importa-archivio')) { $('#file-importa-archivio').click(); return; }
   if (dentro('#pulsante-azzera-archivio')) { azzeraArchivio(); return; }
@@ -1846,7 +1924,7 @@ const alCambiamentoAltrui = conRitardo(() => {
     if (!testo) return;
     const letto = JSON.parse(testo);
     if (!archivioValido(letto)) return;
-    archivio = letto;
+    archivio = letto; archivio.impostazioni ??= {};
     if (!stato.profilo) { mostraIngresso(); return; }
     stato.profilo = leggiProfilo(stato.profilo.id);
     if (!stato.profilo || !stato.profilo.attivo) { esci(); avvisa('Il tuo utente è stato modificato: accedi di nuovo.', 'errore'); return; }
