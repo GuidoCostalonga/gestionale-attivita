@@ -1,0 +1,1826 @@
+<!doctype html>
+<html lang="it" data-tema="chiaro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Gestionale attività e contatti</title>
+<style>
+/* =====================================================================
+   FOGLIO DI STILE
+   Una sola tinta principale (--tinta), due temi scelti con data-tema.
+   ===================================================================== */
+:root{
+  --tinta:#1f4e79;
+  --tinta-chiara:#7ab0e0;
+  --tinta-tenue:color-mix(in srgb, var(--tinta) 14%, transparent);
+  --tinta-testo:var(--tinta);
+  --sfondo:#f4f5f7;
+  --superficie:#ffffff;
+  --superficie-alt:#fafbfc;
+  --testo:#16191d;
+  --testo-tenue:#5c6570;
+  --bordo:#dfe3e8;
+  --ombra:0 1px 2px rgba(16,24,40,.06), 0 4px 12px rgba(16,24,40,.06);
+  --raggio:12px;
+  --raggio-piccolo:8px;
+  --rosso:#b42318;
+  --verde:#15803d;
+  --ambra:#a16207;
+  --rosso-sfondo:#fef3f2;
+  --verde-sfondo:#f0fdf4;
+  --ambra-sfondo:#fffbeb;
+}
+html[data-tema="scuro"]{
+  --tinta-tenue:rgba(255,255,255,.10);
+  --tinta-testo:var(--tinta-chiara);
+  --sfondo:#14171b;
+  --superficie:#1c2026;
+  --superficie-alt:#22272e;
+  --testo:#e8eaed;
+  --testo-tenue:#a3acb8;
+  --bordo:#333a44;
+  --ombra:0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.35);
+  --rosso:#f97066;
+  --verde:#5bd08a;
+  --ambra:#fdb022;
+  --rosso-sfondo:#2b1b1a;
+  --verde-sfondo:#16261c;
+  --ambra-sfondo:#2a2213;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.5;color:var(--testo);background:var(--sfondo);
+  -webkit-text-size-adjust:100%;
+}
+h1,h2,h3{margin:0 0 .5rem;font-weight:650;letter-spacing:-.01em}
+h1{font-size:1.5rem}
+h2{font-size:1.2rem}
+h3{font-size:1rem}
+p{margin:0 0 .75rem}
+a{color:var(--tinta-testo)}
+
+/* ---------- moduli ---------- */
+label{display:block;font-size:.86rem;font-weight:600;color:var(--testo-tenue);margin-bottom:.3rem}
+input,select,textarea{
+  width:100%;padding:.6rem .7rem;font:inherit;color:var(--testo);
+  background:var(--superficie);border:1px solid var(--bordo);border-radius:var(--raggio-piccolo);
+}
+textarea{min-height:5.5rem;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,
+button:focus-visible,[tabindex]:focus-visible,a:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+.campo{margin-bottom:1rem}
+.campi-affiancati{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+button{font:inherit;cursor:pointer;border-radius:var(--raggio-piccolo);border:1px solid transparent;padding:.55rem .9rem}
+.principale{background:var(--tinta);color:#fff;font-weight:600}
+.principale:hover{filter:brightness(1.08)}
+.secondario{background:var(--superficie);color:var(--testo);border-color:var(--bordo)}
+.secondario:hover{background:var(--superficie-alt)}
+.pericolo{background:var(--rosso-sfondo);color:var(--rosso);border-color:var(--rosso)}
+.grande{width:100%;padding:.85rem;font-size:1rem}
+.icona{background:transparent;border:0;color:var(--testo);padding:.45rem .55rem;font-size:1.1rem;line-height:1;border-radius:var(--raggio-piccolo);position:relative}
+.icona:hover{background:var(--tinta-tenue)}
+.icona svg{width:1.35rem;height:1.35rem;display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#pulsante-menu{display:none;align-items:center}
+button[disabled]{opacity:.5;cursor:not-allowed}
+
+/* ---------- schermate a tutto schermo ---------- */
+.schermata{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:1.25rem;background:var(--sfondo);overflow:auto;z-index:60}
+.riquadro{width:100%;max-width:26rem;background:var(--superficie);border:1px solid var(--bordo);border-radius:var(--raggio);box-shadow:var(--ombra);padding:1.75rem}
+.riquadro .marchio-grande{font-size:1.35rem;font-weight:700;color:var(--tinta-testo);margin-bottom:.25rem}
+.nota{font-size:.84rem;color:var(--testo-tenue)}
+.elenco-persone{display:flex;flex-direction:column;gap:.5rem;margin:1rem 0}
+.persona{
+  display:flex;align-items:center;gap:.7rem;width:100%;text-align:left;padding:.65rem .8rem;
+  background:var(--superficie);border:1px solid var(--bordo);color:var(--testo);
+}
+.persona:hover{background:var(--tinta-tenue);border-color:var(--tinta)}
+.iniziali{
+  width:2.3rem;height:2.3rem;border-radius:50%;background:var(--tinta);color:#fff;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:.9rem;
+}
+.persona .ruolo{font-size:.8rem;color:var(--testo-tenue);display:block}
+
+/* ---------- impianto ---------- */
+.applicazione{display:grid;grid-template-columns:15rem minmax(0,1fr);grid-template-rows:auto 1fr;height:100%}
+.intestazione{
+  grid-column:1 / -1;display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;min-width:0;
+  background:var(--superficie);border-bottom:1px solid var(--bordo);position:sticky;top:0;z-index:30;
+}
+.marchio{font-weight:700;color:var(--tinta-testo);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}
+.spazio{flex:1}
+.barra-laterale{background:var(--superficie);border-right:1px solid var(--bordo);padding:1rem .75rem;display:flex;flex-direction:column;gap:.2rem;overflow:auto}
+.barra-laterale button{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;background:transparent;color:var(--testo);border:0;padding:.6rem .7rem;font-weight:500}
+.barra-laterale button svg{width:1.15rem;height:1.15rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.barra-laterale button:hover{background:var(--tinta-tenue)}
+.barra-laterale button[aria-current="page"]{background:var(--tinta);color:#fff;font-weight:650}
+.barra-laterale .piede-barra{margin-top:auto;padding:.6rem .7rem;font-size:.78rem;color:var(--testo-tenue)}
+.contenuto{padding:1.25rem;overflow:auto;min-width:0}
+.contenuto:focus{outline:none}
+.velo{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39}
+
+/* ---------- schede ---------- */
+.scheda{background:var(--superficie);border:1px solid var(--bordo);border-radius:var(--raggio);padding:1rem;box-shadow:var(--ombra)}
+.griglia-sintesi{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1rem;margin-bottom:1.25rem}
+.sintesi{cursor:pointer;text-align:left;font:inherit;color:inherit}
+.sintesi:hover{border-color:var(--tinta)}
+.sintesi .numero{font-size:2rem;font-weight:700;line-height:1.1;color:var(--tinta-testo)}
+.sintesi .numero.allarme{color:var(--rosso)}
+.sintesi .didascalia{font-size:.86rem;color:var(--testo-tenue)}
+.intestazione-sezione{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-bottom:1rem}
+.intestazione-sezione h1{margin:0;flex:1;min-width:12rem}
+.due-colonne{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.25rem;align-items:start}
+
+/* ---------- etichette ---------- */
+.etichetta{
+  display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:650;padding:.15rem .5rem;
+  border-radius:999px;border:1px solid var(--bordo);background:var(--superficie-alt);color:var(--testo-tenue);white-space:nowrap;
+}
+.etichetta::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:currentColor;flex:none}
+.etichetta.senza-punto::before{display:none}
+.priorita-urgente{color:var(--rosso);background:var(--rosso-sfondo);border-color:var(--rosso)}
+.priorita-alta{color:var(--ambra);background:var(--ambra-sfondo);border-color:var(--ambra)}
+.priorita-media{color:var(--tinta-testo);background:var(--tinta-tenue);border-color:var(--tinta-testo)}
+.priorita-bassa{color:var(--testo-tenue)}
+.stato-completata{color:var(--verde);background:var(--verde-sfondo);border-color:var(--verde)}
+.stato-in_corso{color:var(--tinta-testo);background:var(--tinta-tenue);border-color:var(--tinta-testo)}
+.stato-sospesa{color:var(--ambra);background:var(--ambra-sfondo);border-color:var(--ambra)}
+.scaduta{color:var(--rosso);font-weight:650}
+
+/* ---------- elenchi e tabelle ---------- */
+.elenco{display:flex;flex-direction:column;gap:.6rem}
+.riga-attivita{
+  display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;padding:.8rem 1rem;
+  background:var(--superficie);border:1px solid var(--bordo);border-left:4px solid var(--bordo);
+  border-radius:var(--raggio);cursor:pointer;text-align:left;width:100%;color:var(--testo);
+}
+.riga-attivita:hover{background:var(--superficie-alt)}
+.riga-attivita.p-urgente{border-left-color:var(--rosso)}
+.riga-attivita.p-alta{border-left-color:var(--ambra)}
+.riga-attivita.in-ritardo{border-left-color:var(--rosso)}
+.riga-attivita .titolo{font-weight:600;flex:1;min-width:10rem}
+.riga-attivita .titolo small{display:block;font-weight:400;color:var(--testo-tenue);font-size:.8rem}
+.contenitore-tabella{overflow-x:auto;background:var(--superficie);border:1px solid var(--bordo);border-radius:var(--raggio)}
+table{border-collapse:collapse;width:100%;min-width:38rem}
+th,td{padding:.6rem .8rem;text-align:left;border-bottom:1px solid var(--bordo);vertical-align:middle}
+th{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:var(--testo-tenue);background:var(--superficie-alt)}
+th button{background:transparent;border:0;padding:0;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}
+tbody tr[role="button"]{cursor:pointer}
+tbody tr:hover{background:var(--superficie-alt)}
+tbody tr:last-child td{border-bottom:0}
+td .azioni{display:flex;gap:.35rem;flex-wrap:wrap}
+td .azioni button{padding:.35rem .6rem;font-size:.85rem}
+
+/* ---------- colonne per stato ---------- */
+.colonne{display:grid;grid-template-columns:repeat(4,minmax(15rem,1fr));gap:.8rem;overflow-x:auto;padding-bottom:.5rem}
+.colonna{background:var(--superficie-alt);border:1px solid var(--bordo);border-radius:var(--raggio);padding:.7rem;min-height:8rem}
+.colonna.sopra{outline:2px dashed var(--tinta);outline-offset:-4px}
+.colonna h3{display:flex;justify-content:space-between;font-size:.85rem;text-transform:uppercase;color:var(--testo-tenue)}
+.cartellino{
+  background:var(--superficie);border:1px solid var(--bordo);border-left:4px solid var(--bordo);
+  border-radius:var(--raggio-piccolo);padding:.6rem .7rem;margin-bottom:.55rem;cursor:grab;width:100%;text-align:left;
+}
+.cartellino.p-urgente{border-left-color:var(--rosso)}
+.cartellino.p-alta{border-left-color:var(--ambra)}
+.cartellino.in-ritardo{border-left-color:var(--rosso)}
+.cartellino.trascinato{opacity:.5}
+.cartellino .titolo{font-weight:600;display:block;margin-bottom:.35rem}
+.riga-etichette{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+
+/* ---------- filtri ---------- */
+.filtri{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.7rem;margin-bottom:1rem}
+.filtri .campo{margin:0}
+.riga-interruttori{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1rem}
+.interruttore{display:flex;align-items:center;gap:.4rem}
+.interruttore input{width:auto}
+.interruttore label{margin:0}
+
+/* ---------- pannello di dettaglio ---------- */
+.pannello{
+  position:fixed;top:0;right:0;bottom:0;width:min(34rem,100%);z-index:50;
+  background:var(--superficie);border-left:1px solid var(--bordo);box-shadow:var(--ombra);display:flex;flex-direction:column;
+}
+.pannello-testata{display:flex;align-items:flex-start;gap:.5rem;padding:1rem;border-bottom:1px solid var(--bordo)}
+.pannello-corpo{padding:1rem;overflow:auto;flex:1}
+.pannello-piede{padding:.8rem 1rem;border-top:1px solid var(--bordo);display:flex;gap:.5rem;flex-wrap:wrap}
+.blocco{margin-bottom:1.25rem}
+.blocco>h3{border-bottom:1px solid var(--bordo);padding-bottom:.35rem;margin-bottom:.6rem}
+.commento{padding:.6rem .7rem;background:var(--superficie-alt);border-radius:var(--raggio-piccolo);margin-bottom:.5rem}
+.commento .firma{font-size:.78rem;color:var(--testo-tenue);margin-bottom:.2rem}
+.voce-cronologia{display:flex;gap:.5rem;font-size:.85rem;padding:.3rem 0;border-bottom:1px dashed var(--bordo)}
+.voce-cronologia .quando{color:var(--testo-tenue);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gettone{display:inline-flex;align-items:center;gap:.35rem;background:var(--tinta-tenue);border-radius:999px;padding:.2rem .3rem .2rem .6rem;font-size:.82rem;margin:0 .3rem .3rem 0}
+.gettone button{background:transparent;border:0;padding:0 .25rem;color:var(--testo-tenue);font-size:1rem;line-height:1}
+.allegato{display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px dashed var(--bordo)}
+.allegato .spazio{flex:1}
+
+/* ---------- finestra modale ---------- */
+.modale{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:70;overflow:auto}
+.modale-riquadro{background:var(--superficie);border-radius:var(--raggio);border:1px solid var(--bordo);box-shadow:var(--ombra);width:100%;max-width:32rem;padding:1.5rem;margin:auto}
+.modale-azioni{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+
+/* ---------- avvisi ---------- */
+.avvisi{position:fixed;top:.8rem;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:.5rem;width:min(30rem,calc(100% - 2rem))}
+.avviso{padding:.7rem .9rem;border-radius:var(--raggio-piccolo);border:1px solid var(--bordo);background:var(--superficie);box-shadow:var(--ombra);font-size:.9rem}
+.avviso.errore{border-color:var(--rosso);background:var(--rosso-sfondo);color:var(--rosso)}
+.avviso.bene{border-color:var(--verde);background:var(--verde-sfondo);color:var(--verde)}
+
+/* ---------- indicatori ---------- */
+.pallino{position:absolute;top:.15rem;right:.15rem;min-width:1.05rem;height:1.05rem;padding:0 .2rem;border-radius:999px;background:var(--rosso);color:#fff;font-size:.68rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.vuoto{padding:2rem 1rem;text-align:center;color:var(--testo-tenue)}
+.solo-lettore{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.barra-avanzamento{height:.5rem;border-radius:999px;background:var(--bordo);overflow:hidden;margin:.4rem 0}
+.barra-avanzamento i{display:block;height:100%;background:var(--verde)}
+.riepilogo{background:var(--superficie-alt);border:1px solid var(--bordo);border-radius:var(--raggio-piccolo);padding:.8rem;white-space:pre-wrap;font-size:.88rem;margin-bottom:.6rem}
+
+/* ---------- schermi stretti ---------- */
+@media (max-width:1100px){ .due-colonne{grid-template-columns:1fr} }
+@media (max-width:900px){
+  .applicazione{grid-template-columns:minmax(0,1fr)}
+  #pulsante-menu{display:inline-flex}
+  .barra-laterale{position:fixed;top:0;bottom:0;left:0;width:15rem;z-index:40;transform:translateX(-100%);transition:transform .15s ease-out}
+  .barra-laterale.aperta{transform:translateX(0)}
+  .colonne{grid-template-columns:repeat(4,minmax(13rem,1fr))}
+}
+@media (max-width:560px){
+  .contenuto{padding:.85rem}
+  .campi-affiancati{grid-template-columns:1fr}
+  .riquadro{padding:1.15rem}
+  .pannello{width:100%}
+  .colonne{grid-template-columns:1fr}
+}
+@media print{
+  .intestazione,.barra-laterale,.filtri,.riga-interruttori,.pannello,.modale,.avvisi{display:none !important}
+  .applicazione{display:block}
+}
+</style>
+</head>
+<body>
+
+<div id="avvisi" class="avvisi" role="status" aria-live="polite"></div>
+
+<!-- Schermata di accesso: si sceglie chi sta usando il gestionale -->
+<section id="schermata-accesso" class="schermata" hidden aria-labelledby="titolo-accesso">
+  <div class="riquadro">
+    <div class="marchio-grande" data-marchio></div>
+    <h1 id="titolo-accesso">Chi sei?</h1>
+    <p class="nota">L’archivio è custodito in questo browser. Scegli il tuo nome per entrare.</p>
+    <div id="elenco-accesso" class="elenco-persone"></div>
+    <p class="nota">Non ti trovi nell’elenco? Chiedi all’amministratore del gruppo di aggiungerti dalla sezione Utenti.</p>
+    <button type="button" class="secondario grande" id="pulsante-importa-accesso">Ripristina da una copia di sicurezza</button>
+    <input id="file-importa-accesso" type="file" accept="application/json,.json" hidden>
+  </div>
+</section>
+
+<!-- Applicazione -->
+<div id="applicazione" class="applicazione" hidden>
+  <header class="intestazione">
+    <button id="pulsante-menu" class="icona" aria-label="Apri il menu delle sezioni" aria-expanded="false" aria-controls="barra-laterale">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <span class="marchio" data-marchio></span>
+    <span class="spazio"></span>
+    <a id="tasto-home" class="icona" href="/" hidden aria-label="Torna alla pagina iniziale del sito" title="Pagina iniziale del sito" style="text-decoration:none;display:inline-flex;align-items:center">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/></svg></a>
+    <button id="pulsante-notifiche" class="icona" aria-label="Notifiche" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3a5.5 5.5 0 0 0-5.5 5.5v3.2L5 15h14l-1.5-3.3V8.5A5.5 5.5 0 0 0 12 3Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+      <span id="pallino-notifiche" class="pallino" hidden>0</span></button>
+    <button id="pulsante-tema" class="icona" aria-label="Cambia tema chiaro o scuro">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg></button>
+    <button id="pulsante-profilo" class="secondario" aria-label="Vai al profilo">Profilo</button>
+  </header>
+
+  <div id="velo" class="velo" hidden></div>
+
+  <nav id="barra-laterale" class="barra-laterale" aria-label="Sezioni del gestionale">
+    <button type="button" data-sezione="cruscotto">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg>Cruscotto</button>
+    <button type="button" data-sezione="attivita">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Attività</button>
+    <button type="button" data-sezione="contatti">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M17 14a6 6 0 0 1 4 6"/></svg>Contatti</button>
+    <button type="button" data-sezione="utenti" id="voce-utenti" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M18 3.5l1 1-1 1M6 3.5l-1 1 1 1"/></svg>Utenti</button>
+    <button type="button" data-sezione="profilo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Profilo</button>
+    <div class="piede-barra" id="piede-barra"></div>
+  </nav>
+
+  <main id="contenuto" class="contenuto" tabindex="-1"></main>
+</div>
+
+<aside id="pannello" class="pannello" hidden role="dialog" aria-modal="false" aria-label="Dettaglio"></aside>
+<div id="modale" class="modale" hidden role="dialog" aria-modal="true"></div>
+
+<script>
+/* =====================================================================
+   1. CONFIGURAZIONE E IDENTITÀ
+   ===================================================================== */
+const IDENTITA = {
+  titolo: 'Gestionale attività e contatti',
+  tintaPrincipale: '#1f4e79'
+};
+
+const CHIAVI_LOCALI = {
+  archivio: 'gestionale-locale.archivio',
+  sessione: 'gestionale-locale.sessione',
+  tema:     'gestionale-locale.tema',
+  vista:    'gestionale-locale.vista'
+};
+
+const PER_PAGINA = 50;
+const RITARDO_RICERCA = 250;
+const DIMENSIONE_MASSIMA_FILE = 1 * 1024 * 1024;   // i file finiscono nell'archivio del browser
+
+const STATI = { da_fare:'Da fare', in_corso:'In corso', sospesa:'Sospesa', completata:'Completata' };
+const PRIORITA = { bassa:'Bassa', media:'Media', alta:'Alta', urgente:'Urgente' };
+const PESO_PRIORITA = { bassa:1, media:2, alta:3, urgente:4 };
+const AZIONI_REGISTRO = {
+  creata:'ha creato l’attività', stato_modificato:'ha cambiato stato',
+  partecipante_aggiunto:'ha aggiunto un partecipante', partecipante_rimosso:'ha tolto un partecipante',
+  commento_aggiunto:'ha scritto un commento', allegato_aggiunto:'ha aggiunto un allegato',
+  allegato_rimosso:'ha tolto un allegato',
+  scadenza_modificata:'ha cambiato la scadenza', completata:'ha completato l’attività',
+  riaperta:'ha riaperto l’attività', modificata:'ha modificato i dati'
+};
+
+/* --- Strumenti comuni --- */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+function proteggi(valore) {
+  return String(valore ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function nuovoId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+const adesso = () => new Date().toISOString();
+
+function dataItaliana(valore, conOra = false) {
+  if (!valore) return '—';
+  const data = new Date(valore);
+  if (Number.isNaN(data.getTime())) return '—';
+  const opzioni = conOra
+    ? { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }
+    : { day:'2-digit', month:'2-digit', year:'numeric' };
+  return data.toLocaleString('it-IT', opzioni);
+}
+function oggiArchivio(giorniAvanti = 0) {
+  const data = new Date();
+  data.setDate(data.getDate() + giorniAvanti);
+  return new Date(data.getTime() - data.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+function giorniFa(n, ore = 10) {
+  const d = new Date(); d.setDate(d.getDate() - n); d.setHours(ore, 0, 0, 0);
+  return d.toISOString();
+}
+function avvisa(messaggio, tipo = 'neutro', durata = 5000) {
+  const nodo = document.createElement('div');
+  nodo.className = `avviso ${tipo === 'errore' ? 'errore' : tipo === 'bene' ? 'bene' : ''}`;
+  nodo.textContent = messaggio;
+  $('#avvisi').append(nodo);
+  setTimeout(() => nodo.remove(), durata);
+}
+function spiegaErrore(errore, contesto = 'operazione') {
+  const grezzo = String(errore?.message ?? errore ?? '');
+  if (/quota|spazio/i.test(grezzo) || errore?.name === 'QuotaExceededError') {
+    return 'Lo spazio dell’archivio del browser è pieno: elimina qualche allegato o fai una copia di sicurezza e ripulisci.';
+  }
+  if (/permess/i.test(grezzo)) return 'Non hai i permessi per completare questa operazione.';
+  return `Non è stato possibile completare l’${contesto}. Riprova.`;
+}
+function conRitardo(funzione, millisecondi) {
+  let attesa;
+  return (...argomenti) => { clearTimeout(attesa); attesa = setTimeout(() => funzione(...argomenti), millisecondi); };
+}
+function scaricaTesto(nomeFile, contenuto, tipo) {
+  const blob = new Blob([contenuto], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomeFile; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* =====================================================================
+   2. ARCHIVIO LOCALE
+   Tutte le tabelle stanno in un solo oggetto salvato nel browser.
+   ===================================================================== */
+let archivio = null;
+
+function archivioVuoto() {
+  return { versione:1, profili:[], contatti:[], attivita:[], partecipanti:[], commenti:[], allegati:[], registro_eventi:[] };
+}
+function archivioValido(oggetto) {
+  return oggetto && typeof oggetto === 'object'
+    && ['profili','contatti','attivita','partecipanti','commenti','allegati','registro_eventi']
+      .every((t) => Array.isArray(oggetto[t]));
+}
+function caricaArchivio() {
+  try {
+    const testo = localStorage.getItem(CHIAVI_LOCALI.archivio);
+    if (testo) {
+      const letto = JSON.parse(testo);
+      if (archivioValido(letto)) { archivio = letto; return; }
+    }
+  } catch { /* archivio illeggibile: si ricomincia dai dati dimostrativi */ }
+  archivio = creaDatiDimostrativi();
+  salvaArchivio();
+}
+let ignoraProssimoEventoStorage = false;
+function salvaArchivio() {
+  try {
+    ignoraProssimoEventoStorage = true;
+    localStorage.setItem(CHIAVI_LOCALI.archivio, JSON.stringify(archivio));
+  } catch (errore) {
+    ignoraProssimoEventoStorage = false;
+    throw new Error('spazio insufficiente: ' + (errore?.message ?? ''));
+  }
+  setTimeout(() => { ignoraProssimoEventoStorage = false; }, 50);
+}
+function registra(attivitaId, azione, utenteId = stato.profilo?.id ?? null) {
+  archivio.registro_eventi.push({ id:nuovoId(), attivita_id:attivitaId, utente_id:utenteId, azione, creato_il:adesso() });
+}
+
+/* --- Dati dimostrativi per la prima apertura --- */
+function creaDatiDimostrativi() {
+  const a = archivioVuoto();
+  const idP = () => nuovoId();
+  const guido = idP(), maria = idP(), luca = idP(), anna = idP();
+  a.profili = [
+    { id:guido, nome:'Guido', cognome:'Costalonga', posta_elettronica:'guido@esempio.it', telefono:'333 1234567', ruolo:'amministratore', attivo:true, creato_il:giorniFa(60), ultimo_accesso:giorniFa(0, 8), ultima_lettura_notifiche:giorniFa(3) },
+    { id:maria, nome:'Maria', cognome:'Rossi', posta_elettronica:'maria.rossi@esempio.it', telefono:'347 9876543', ruolo:'collaboratore', attivo:true, creato_il:giorniFa(58), ultimo_accesso:giorniFa(1, 17), ultima_lettura_notifiche:giorniFa(4) },
+    { id:luca, nome:'Luca', cognome:'Bianchi', posta_elettronica:'luca.bianchi@esempio.it', telefono:'', ruolo:'collaboratore', attivo:true, creato_il:giorniFa(50), ultimo_accesso:giorniFa(2, 9), ultima_lettura_notifiche:giorniFa(5) },
+    { id:anna, nome:'Anna', cognome:'Verdi', posta_elettronica:'anna.verdi@esempio.it', telefono:'328 5551234', ruolo:'collaboratore', attivo:false, creato_il:giorniFa(45), ultimo_accesso:giorniFa(20), ultima_lettura_notifiche:giorniFa(20) }
+  ];
+  const c = (nome, ente, qualifica, telefono, posta, indirizzo, etichette, note, chi) => ({
+    id:nuovoId(), nome, ente, ruolo_contatto:qualifica, telefono, posta_elettronica:posta, indirizzo,
+    etichette, note, creato_da:chi, creato_il:giorniFa(40), aggiornato_il:giorniFa(Math.floor(Math.random() * 20))
+  });
+  a.contatti = [
+    c('Paolo Marchetti', 'Comune di Pordenone', 'Dirigente Servizi sociali', '0434 392111', 'p.marchetti@comune.pordenone.it', 'Corso Vittorio Emanuele II 64, Pordenone', ['ente pubblico', 'sociale'], 'Preferisce essere contattato al mattino.', guido),
+    c('Giulia Sartori', 'Pro Loco Sacile', 'Presidente', '0434 71888', 'info@prolocosacile.it', 'Piazza del Popolo 1, Sacile', ['associazione', 'eventi'], '', maria),
+    c('Studio Legale Furlan', 'Studio Legale Furlan & Associati', 'Segreteria', '0434 520044', 'segreteria@furlanlegale.it', 'Via Mazzini 12, Pordenone', ['fornitore', 'legale'], 'Fatture entro il 10 del mese.', guido),
+    c('Elena Moretti', 'Istituto Comprensivo Torre', 'Dirigente scolastica', '0434 361428', 'dirigente@ictorre.edu.it', 'Via Interna 1, Pordenone', ['scuola'], 'Progetto DSA in corso.', luca),
+    c('Marco De Luca', 'Cooperativa Il Ponte', 'Coordinatore', '340 1122334', 'marco@coopilponte.org', 'Via Roma 5, Cordenons', ['cooperativa', 'sociale'], '', maria),
+    c('Tipografia Sartor', 'Tipografia Sartor snc', 'Titolare', '0434 240310', 'ordini@tipografiasartor.it', 'Via Nuova di Corva 80, Pordenone', ['fornitore', 'stampa'], 'Tempi di consegna: 5 giorni lavorativi.', guido),
+    c('Francesca Rigo', 'Regione FVG - Direzione Lavoro', 'Funzionaria', '040 3775111', 'francesca.rigo@regione.fvg.it', 'Via San Francesco 37, Trieste', ['ente pubblico', 'bandi'], '', luca),
+    c('Roberto Zanin', 'Associazione Volontari Ospedale', 'Referente', '335 6677889', 'r.zanin@avo-pn.it', 'Via Montereale 24, Pordenone', ['associazione', 'volontariato'], '', maria),
+    c('Bar Centrale', 'Bar Centrale di Toffoli Sara', 'Titolare', '0434 21345', 'barcentrale@esempio.it', 'Piazza XX Settembre 3, Pordenone', ['esercizio', 'eventi'], 'Disponibile per il catering delle riunioni.', guido),
+    c('Chiara Pavan', 'Gazzettino - redazione Pordenone', 'Giornalista', '338 4455667', 'c.pavan@esempio.it', '', ['stampa', 'media'], 'Chiede i comunicati entro le 17.', luca),
+    c('Stefano Bortolin', 'Libero professionista', 'Consulente informatico', '349 1010101', 'stefano@bortolin.dev', 'Via Grigoletti 72, Pordenone', ['fornitore', 'informatica'], '', guido),
+    c('Parrocchia San Marco', 'Parrocchia San Marco', 'Segreteria parrocchiale', '0434 520355', 'sanmarco@esempio.it', 'Piazza San Marco 1, Pordenone', ['associazione'], 'Sala disponibile il martedì e il giovedì.', maria)
+  ];
+  const co = (i) => a.contatti[i].id;
+  const attivita = (titolo, descrizione, stato, priorita, scadenzaGiorni, creatoDa, contatto, partecipanti, giorniCreazione, opzioni = {}) => {
+    const id = nuovoId();
+    const creato = giorniFa(giorniCreazione, 9);
+    const scadenza = scadenzaGiorni === null ? null : oggiArchivio(scadenzaGiorni);
+    const voce = {
+      id, titolo, descrizione, stato, priorita, scadenza, contatto_id:contatto,
+      creato_da:creatoDa, creato_il:creato, aggiornato_il:giorniFa(Math.max(0, giorniCreazione - 2), 15),
+      completata_il:null, completata_da:null
+    };
+    if (stato === 'completata') {
+      voce.completata_il = opzioni.completataGiorniFa != null ? giorniFa(opzioni.completataGiorniFa, 16) : giorniFa(1, 16);
+      voce.completata_da = opzioni.completataDa ?? creatoDa;
+    }
+    a.attivita.push(voce);
+    a.registro_eventi.push({ id:nuovoId(), attivita_id:id, utente_id:creatoDa, azione:'creata', creato_il:creato });
+    partecipanti.forEach((p, i) => {
+      a.partecipanti.push({ attivita_id:id, utente_id:p, invitato_il:giorniFa(giorniCreazione, 9 + i + 1), invitato_da:creatoDa });
+      a.registro_eventi.push({ id:nuovoId(), attivita_id:id, utente_id:creatoDa, azione:'partecipante_aggiunto', creato_il:giorniFa(giorniCreazione, 9 + i + 1) });
+    });
+    if (stato === 'completata') a.registro_eventi.push({ id:nuovoId(), attivita_id:id, utente_id:voce.completata_da, azione:'completata', creato_il:voce.completata_il });
+    return id;
+  };
+  const commento = (attivitaId, autore, testo, giorni, ora = 11) => {
+    const quando = giorniFa(giorni, ora);
+    a.commenti.push({ id:nuovoId(), attivita_id:attivitaId, autore_id:autore, testo, creato_il:quando });
+    a.registro_eventi.push({ id:nuovoId(), attivita_id:attivitaId, utente_id:autore, azione:'commento_aggiunto', creato_il:quando });
+  };
+  const allegato = (attivitaId, etichetta, indirizzo, chi, giorni) => {
+    a.allegati.push({ id:nuovoId(), attivita_id:attivitaId, tipo:'collegamento', etichetta, indirizzo, creato_da:chi, creato_il:giorniFa(giorni, 12) });
+    a.registro_eventi.push({ id:nuovoId(), attivita_id:attivitaId, utente_id:chi, azione:'allegato_aggiunto', creato_il:giorniFa(giorni, 12) });
+  };
+
+  const a1 = attivita('Preparare la relazione per la Giunta comunale', 'Raccogliere i dati del primo semestre e impaginare la relazione da consegnare in Comune.', 'in_corso', 'alta', 3, guido, co(0), [maria], 12);
+  commento(a1, maria, 'Ho recuperato i dati dei primi quattro mesi, mancano maggio e giugno.', 2, 10);
+  commento(a1, guido, 'Perfetto, li chiedo io a Marchetti.', 2, 15);
+  allegato(a1, 'Modello di relazione (Google Documenti)', 'https://docs.google.com/', maria, 5);
+  const a2 = attivita('Telefonare alla Pro Loco per la sagra di settembre', 'Confermare la presenza al banchetto e chiedere il numero di sedie disponibili.', 'da_fare', 'media', 1, maria, co(1), [], 4);
+  const a3 = attivita('Rinnovo contratto assistenza informatica', 'Il contratto scade a fine mese: chiedere preventivo aggiornato e confrontarlo con quello dell’anno scorso.', 'da_fare', 'urgente', -2, guido, co(10), [luca], 15);
+  commento(a3, luca, 'Ho chiesto il preventivo, risponde entro venerdì.', 1, 9);
+  const a4 = attivita('Comunicato stampa sull’apertura dello sportello', 'Scrivere e inviare il comunicato alla stampa locale.', 'sospesa', 'media', 6, luca, co(9), [guido], 8);
+  commento(a4, guido, 'Aspettiamo la conferma della data dal Comune prima di uscire.', 3, 18);
+  const a5 = attivita('Pagare la fattura della tipografia', 'Fattura n. 122 per i volantini dell’assemblea.', 'completata', 'alta', -6, guido, co(5), [], 20, { completataGiorniFa:4 });
+  const a6 = attivita('Incontro con la dirigente scolastica', 'Presentare il progetto di sostegno agli studenti con DSA per l’anno scolastico.', 'in_corso', 'alta', 5, luca, co(3), [maria, guido], 10);
+  commento(a6, maria, 'Porto io le schede di presentazione stampate.', 1, 12);
+  allegato(a6, 'Presentazione del progetto', 'https://example.org/progetto-dsa.pdf', luca, 4);
+  const a7 = attivita('Candidatura al bando regionale Lavoro e inclusione', 'Verificare i requisiti, preparare la documentazione e caricarla sul portale entro la scadenza.', 'da_fare', 'urgente', 9, guido, co(6), [luca, maria], 6);
+  allegato(a7, 'Testo del bando', 'https://www.regione.fvg.it/', guido, 6);
+  const a8 = attivita('Organizzare la riunione mensile dei volontari', 'Prenotare la sala parrocchiale e ordinare il rinfresco.', 'da_fare', 'bassa', 14, maria, co(11), [], 3);
+  const a9 = attivita('Aggiornare l’elenco dei soci', 'Inserire le nuove iscrizioni e segnare chi non ha rinnovato.', 'in_corso', 'media', 20, maria, null, [luca], 9);
+  const a10 = attivita('Verifica assicurazione volontari', 'Controllare la copertura assicurativa per i volontari dell’ospedale.', 'da_fare', 'alta', -5, luca, co(7), [], 18);
+  const a11 = attivita('Ordine nuovi volantini', 'Ristampa di 500 volantini con il programma autunnale.', 'completata', 'media', -10, maria, co(5), [guido], 25, { completataGiorniFa:9, completataDa:maria });
+  const a12 = attivita('Parere legale sullo statuto', 'Chiedere allo studio Furlan una lettura del nuovo statuto prima dell’assemblea.', 'sospesa', 'bassa', null, guido, co(2), [], 30);
+  const a13 = attivita('Rimborso spese trasferta Trieste', 'Raccogliere gli scontrini e compilare il modulo.', 'completata', 'bassa', -15, luca, null, [], 22, { completataGiorniFa:14 });
+  const a14 = attivita('Preparare il catering per l’assemblea', 'Chiedere al Bar Centrale un preventivo per 40 persone.', 'da_fare', 'media', 12, guido, co(8), [maria], 2);
+  const a15 = attivita('Coordinamento con la cooperativa Il Ponte', 'Definire il calendario congiunto delle attività di autunno.', 'in_corso', 'media', 8, maria, co(4), [guido], 7);
+  commento(a15, guido, 'Ho proposto a De Luca di vederci martedì.', 0, 9);
+  const a16 = attivita('Archiviare i verbali del 2025', 'Scansionare e caricare i verbali nella cartella condivisa.', 'da_fare', 'bassa', 30, luca, null, [], 5);
+  const a17 = attivita('Aggiornamento sito web', 'Pubblicare le foto dell’ultimo evento e correggere gli orari di apertura.', 'completata', 'media', -3, guido, co(10), [luca], 11, { completataGiorniFa:2, completataDa:luca });
+  const a18 = attivita('Richiesta patrocinio al Comune', 'Compilare il modulo di richiesta di patrocinio per la rassegna d’autunno.', 'da_fare', 'alta', 0, maria, co(0), [guido], 1);
+  void a2; void a5; void a8; void a9; void a10; void a11; void a12; void a13; void a14; void a16; void a17; void a18;
+  return a;
+}
+
+/* =====================================================================
+   3. STATO DELL'APPLICAZIONE
+   ===================================================================== */
+const stato = {
+  profilo: null,
+  sezione: 'cruscotto',
+  vistaAttivita: localStorage.getItem(CHIAVI_LOCALI.vista) === 'colonne' ? 'colonne' : 'elenco',
+  attivita: [],
+  pagina: 0,
+  altrePagine: false,
+  filtri: { testo:'', stato:'', priorita:'', partecipante:'', contatto:'', daScadenza:'', aScadenza:'', soloMie:false },
+  ordine: 'scadenza',
+  ordineContatti: { colonna:'nome', crescente:true },
+  ricercaContatti: '',
+  dettaglioAttivita: null,
+  dettaglioContatto: null,
+  notifiche: { attivita:0, commenti:0, voci:[] }
+};
+
+const amministratore = () => stato.profilo?.ruolo === 'amministratore';
+
+/* =====================================================================
+   4. FUNZIONI DI ACCESSO AI DATI
+   Parlano soltanto con l'archivio e restituiscono dati grezzi.
+   ===================================================================== */
+const profiliAttivi = () => archivio.profili.filter((p) => p.attivo);
+const contattiOrdinati = () => archivio.contatti.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'it'));
+
+function leggiProfilo(id) { return archivio.profili.find((p) => p.id === id) ?? null; }
+
+function segnaAccesso() {
+  stato.profilo.ultimo_accesso = adesso();
+  salvaArchivio();
+}
+
+// Attività con partecipanti e contatto già agganciati
+function arricchisci(attivita) {
+  return {
+    ...attivita,
+    partecipanti: archivio.partecipanti.filter((p) => p.attivita_id === attivita.id),
+    contatto: archivio.contatti.find((c) => c.id === attivita.contatto_id) ?? null
+  };
+}
+const tutteLeAttivita = () => archivio.attivita.map(arricchisci);
+
+function miRiguarda(attivita) {
+  return attivita.creato_da === stato.profilo.id
+    || attivita.partecipanti.some((p) => p.utente_id === stato.profilo.id);
+}
+
+function confrontaScadenza(a, b) {
+  return String(a.scadenza ?? '9999-12-31').localeCompare(String(b.scadenza ?? '9999-12-31'));
+}
+function ordina(elenco) {
+  const copia = elenco.slice();
+  if (stato.ordine === 'priorita') {
+    return copia.sort((a, b) => (PESO_PRIORITA[b.priorita] - PESO_PRIORITA[a.priorita]) || confrontaScadenza(a, b));
+  }
+  if (stato.ordine === 'creazione') return copia.sort((a, b) => b.creato_il.localeCompare(a.creato_il));
+  if (stato.ordine === 'aggiornamento') return copia.sort((a, b) => b.aggiornato_il.localeCompare(a.aggiornato_il));
+  return copia.sort((a, b) => confrontaScadenza(a, b) || (PESO_PRIORITA[b.priorita] - PESO_PRIORITA[a.priorita]));
+}
+
+// Applica filtri e ordine e restituisce la pagina richiesta
+function elencaAttivita(azzera = false) {
+  if (azzera) { stato.pagina = 0; }
+  const f = stato.filtri;
+  const cerca = f.testo.trim().toLowerCase();
+  let elenco = tutteLeAttivita().filter((a) => {
+    if (f.stato && a.stato !== f.stato) return false;
+    if (f.priorita && a.priorita !== f.priorita) return false;
+    if (f.contatto && a.contatto_id !== f.contatto) return false;
+    if (f.daScadenza && (!a.scadenza || a.scadenza < f.daScadenza)) return false;
+    if (f.aScadenza && (!a.scadenza || a.scadenza > f.aScadenza)) return false;
+    if (f.partecipante && a.creato_da !== f.partecipante
+        && !a.partecipanti.some((p) => p.utente_id === f.partecipante)) return false;
+    if (f.soloMie && !miRiguarda(a)) return false;
+    if (cerca && !`${a.titolo} ${a.descrizione ?? ''}`.toLowerCase().includes(cerca)) return false;
+    return true;
+  });
+  elenco = ordina(elenco);
+  const fine = (stato.pagina + 1) * PER_PAGINA;
+  stato.altrePagine = elenco.length > fine;
+  stato.attivita = elenco.slice(0, fine);
+  return stato.attivita;
+}
+
+function leggiDettaglioAttivita(id) {
+  const attivita = archivio.attivita.find((a) => a.id === id);
+  if (!attivita) return null;
+  return {
+    attivita: arricchisci(attivita),
+    partecipanti: archivio.partecipanti.filter((p) => p.attivita_id === id),
+    commenti: archivio.commenti.filter((c) => c.attivita_id === id).sort((a, b) => a.creato_il.localeCompare(b.creato_il)),
+    allegati: archivio.allegati.filter((g) => g.attivita_id === id).sort((a, b) => a.creato_il.localeCompare(b.creato_il)),
+    registro: archivio.registro_eventi.filter((e) => e.attivita_id === id)
+      .sort((a, b) => b.creato_il.localeCompare(a.creato_il)).slice(0, 100)
+  };
+}
+
+// Ultimi movimenti sulle attività che mi riguardano
+function elencaUltimiMovimenti(quanti = 12) {
+  const mie = new Set(tutteLeAttivita().filter(miRiguarda).map((a) => a.id));
+  return archivio.registro_eventi.filter((e) => mie.has(e.attivita_id))
+    .sort((a, b) => b.creato_il.localeCompare(a.creato_il)).slice(0, quanti)
+    .map((e) => ({ ...e, attivita: archivio.attivita.find((a) => a.id === e.attivita_id) }));
+}
+
+function creaAttivita(dati, partecipanti) {
+  const id = nuovoId();
+  const quando = adesso();
+  archivio.attivita.push({
+    id, titolo:dati.titolo, descrizione:dati.descrizione, stato:'da_fare', priorita:dati.priorita,
+    scadenza:dati.scadenza || null, contatto_id:dati.contatto_id || null,
+    creato_da:stato.profilo.id, creato_il:quando, aggiornato_il:quando, completata_il:null, completata_da:null
+  });
+  registra(id, 'creata');
+  partecipanti.forEach((utenteId) => {
+    archivio.partecipanti.push({ attivita_id:id, utente_id:utenteId, invitato_il:adesso(), invitato_da:stato.profilo.id });
+    registra(id, 'partecipante_aggiunto');
+  });
+  salvaArchivio();
+  return id;
+}
+
+function aggiornaAttivita(id, dati) {
+  const a = archivio.attivita.find((x) => x.id === id);
+  if (!a) throw new Error('Attività non trovata.');
+  const azioni = new Set();
+  if (dati.stato !== undefined && dati.stato !== a.stato) {
+    if (dati.stato === 'completata') { azioni.add('completata'); a.completata_il = adesso(); a.completata_da = stato.profilo.id; }
+    else if (a.stato === 'completata') { azioni.add('riaperta'); a.completata_il = null; a.completata_da = null; }
+    else azioni.add('stato_modificato');
+  }
+  if (dati.scadenza !== undefined && (dati.scadenza || null) !== (a.scadenza || null)) azioni.add('scadenza_modificata');
+  const altri = ['titolo', 'descrizione', 'priorita', 'contatto_id'];
+  if (altri.some((k) => dati[k] !== undefined && (dati[k] || null) !== (a[k] || null))) azioni.add('modificata');
+  Object.assign(a, dati, { scadenza: dati.scadenza !== undefined ? (dati.scadenza || null) : a.scadenza,
+                          contatto_id: dati.contatto_id !== undefined ? (dati.contatto_id || null) : a.contatto_id });
+  a.aggiornato_il = adesso();
+  azioni.forEach((azione) => registra(id, azione));
+  salvaArchivio();
+}
+
+function cancellaAttivita(id) {
+  archivio.attivita = archivio.attivita.filter((a) => a.id !== id);
+  archivio.partecipanti = archivio.partecipanti.filter((p) => p.attivita_id !== id);
+  archivio.commenti = archivio.commenti.filter((c) => c.attivita_id !== id);
+  archivio.allegati = archivio.allegati.filter((g) => g.attivita_id !== id);
+  archivio.registro_eventi = archivio.registro_eventi.filter((e) => e.attivita_id !== id);
+  salvaArchivio();
+}
+
+function invitaPartecipante(attivitaId, utenteId) {
+  if (archivio.partecipanti.some((p) => p.attivita_id === attivitaId && p.utente_id === utenteId)) return;
+  archivio.partecipanti.push({ attivita_id:attivitaId, utente_id:utenteId, invitato_il:adesso(), invitato_da:stato.profilo.id });
+  registra(attivitaId, 'partecipante_aggiunto');
+  toccaAttivita(attivitaId);
+  salvaArchivio();
+}
+function togliPartecipante(attivitaId, utenteId) {
+  archivio.partecipanti = archivio.partecipanti.filter((p) => !(p.attivita_id === attivitaId && p.utente_id === utenteId));
+  registra(attivitaId, 'partecipante_rimosso');
+  toccaAttivita(attivitaId);
+  salvaArchivio();
+}
+function scriviCommento(attivitaId, testo) {
+  archivio.commenti.push({ id:nuovoId(), attivita_id:attivitaId, autore_id:stato.profilo.id, testo, creato_il:adesso() });
+  registra(attivitaId, 'commento_aggiunto');
+  toccaAttivita(attivitaId);
+  salvaArchivio();
+}
+function aggiungiAllegato(attivitaId, tipo, etichetta, indirizzo, extra = {}) {
+  archivio.allegati.push({ id:nuovoId(), attivita_id:attivitaId, tipo, etichetta, indirizzo, ...extra,
+    creato_da:stato.profilo.id, creato_il:adesso() });
+  registra(attivitaId, 'allegato_aggiunto');
+  toccaAttivita(attivitaId);
+  salvaArchivio();
+}
+function togliAllegato(allegatoId) {
+  const g = archivio.allegati.find((x) => x.id === allegatoId);
+  if (!g) return;
+  archivio.allegati = archivio.allegati.filter((x) => x.id !== allegatoId);
+  registra(g.attivita_id, 'allegato_rimosso');
+  salvaArchivio();
+}
+function toccaAttivita(id) {
+  const a = archivio.attivita.find((x) => x.id === id);
+  if (a) a.aggiornato_il = adesso();
+}
+
+function salvaContatto(dati, id) {
+  if (id) {
+    const c = archivio.contatti.find((x) => x.id === id);
+    if (!c) throw new Error('Contatto non trovato.');
+    Object.assign(c, dati, { aggiornato_il: adesso() });
+  } else {
+    id = nuovoId();
+    archivio.contatti.push({ id, ...dati, creato_da:stato.profilo.id, creato_il:adesso(), aggiornato_il:adesso() });
+  }
+  salvaArchivio();
+  return id;
+}
+function cancellaContatto(id) {
+  archivio.contatti = archivio.contatti.filter((c) => c.id !== id);
+  archivio.attivita.forEach((a) => { if (a.contatto_id === id) a.contatto_id = null; });
+  salvaArchivio();
+}
+
+function creaUtente(dati) {
+  if (archivio.profili.some((p) => p.posta_elettronica.toLowerCase() === dati.posta_elettronica.toLowerCase())) {
+    throw new Error('Esiste già un utente con questa posta elettronica.');
+  }
+  const id = nuovoId();
+  archivio.profili.push({ id, ...dati, attivo:true, creato_il:adesso(), ultimo_accesso:null, ultima_lettura_notifiche:adesso() });
+  salvaArchivio();
+  return id;
+}
+function cambiaRuolo(utenteId) {
+  const p = leggiProfilo(utenteId);
+  if (!p) return;
+  p.ruolo = p.ruolo === 'amministratore' ? 'collaboratore' : 'amministratore';
+  salvaArchivio();
+}
+function cambiaAttivazione(utenteId, attiva) {
+  const p = leggiProfilo(utenteId);
+  if (!p) return;
+  p.attivo = attiva;
+  salvaArchivio();
+}
+
+// Notifiche: inviti ricevuti e commenti altrui dopo l'ultima lettura
+function contaNotifiche() {
+  const daQuando = stato.profilo.ultima_lettura_notifiche ?? stato.profilo.creato_il;
+  const titolo = (id) => archivio.attivita.find((a) => a.id === id)?.titolo ?? 'attività';
+  const inviti = archivio.partecipanti
+    .filter((p) => p.utente_id === stato.profilo.id && p.invitato_il > daQuando && p.invitato_da !== stato.profilo.id)
+    .map((p) => ({ quando:p.invitato_il, attivitaId:p.attivita_id, testo:`Sei stato invitato a «${titolo(p.attivita_id)}»` }));
+  const mie = new Set(tutteLeAttivita().filter(miRiguarda).map((a) => a.id));
+  const commenti = archivio.commenti
+    .filter((c) => c.autore_id !== stato.profilo.id && c.creato_il > daQuando && mie.has(c.attivita_id))
+    .map((c) => ({ quando:c.creato_il, attivitaId:c.attivita_id, testo:`${nominativo(c.autore_id)} ha commentato «${titolo(c.attivita_id)}»` }));
+  stato.notifiche = {
+    attivita: inviti.length, commenti: commenti.length,
+    voci: [...inviti, ...commenti].sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 30)
+  };
+}
+function segnaNotificheLette() {
+  stato.profilo.ultima_lettura_notifiche = adesso();
+  stato.notifiche = { attivita:0, commenti:0, voci:[] };
+  salvaArchivio();
+}
+
+/* =====================================================================
+   5. FUNZIONI DI DISEGNO DELL'INTERFACCIA
+   ===================================================================== */
+
+/* --- 5.1 Cornice --- */
+function scomponiTinta(esadecimale) {
+  const pulito = esadecimale.replace('#', '');
+  const intero = parseInt(pulito.length === 3 ? pulito.split('').map((c) => c + c).join('') : pulito, 16);
+  return [(intero >> 16) & 255, (intero >> 8) & 255, intero & 255];
+}
+function applicaIdentita() {
+  const schiarita = scomponiTinta(IDENTITA.tintaPrincipale).map((c) => Math.round(c + (255 - c) * 0.55));
+  const stile = document.documentElement.style;
+  stile.setProperty('--tinta', IDENTITA.tintaPrincipale);
+  stile.setProperty('--tinta-chiara', `rgb(${schiarita.join(',')})`);
+  document.title = IDENTITA.titolo;
+  $$('[data-marchio]').forEach((n) => { n.textContent = IDENTITA.titolo; });
+  const salvato = localStorage.getItem(CHIAVI_LOCALI.tema);
+  const scuroDiSistema = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.tema = salvato ?? (scuroDiSistema ? 'scuro' : 'chiaro');
+}
+function alternaTema() {
+  const nuovo = document.documentElement.dataset.tema === 'scuro' ? 'chiaro' : 'scuro';
+  document.documentElement.dataset.tema = nuovo;
+  localStorage.setItem(CHIAVI_LOCALI.tema, nuovo);
+}
+function mostraSchermata(nome) {
+  $('#schermata-accesso').hidden = nome !== 'accesso';
+  $('#applicazione').hidden = nome !== 'applicazione';
+  if (nome !== 'applicazione') { chiudiPannello(); chiudiModale(); }
+}
+function nominativo(utenteId) {
+  const p = leggiProfilo(utenteId);
+  return p ? `${p.nome} ${p.cognome}` : 'Utente non più disponibile';
+}
+function iniziali(p) { return `${(p.nome || '?')[0]}${(p.cognome || '')[0] ?? ''}`.toUpperCase(); }
+
+function etichettaPriorita(v) { return `<span class="etichetta priorita-${v}">Priorità: ${PRIORITA[v] ?? v}</span>`; }
+function etichettaStato(v) { return `<span class="etichetta stato-${v}">${STATI[v] ?? v}</span>`; }
+function inRitardo(a) { return Boolean(a.scadenza) && a.stato !== 'completata' && a.scadenza < oggiArchivio(); }
+function etichettaScadenza(a) {
+  if (!a.scadenza) return '<span class="nota">Senza scadenza</span>';
+  if (inRitardo(a)) return `<span class="scaduta">Scaduta il ${dataItaliana(a.scadenza)}</span>`;
+  if (a.scadenza === oggiArchivio() && a.stato !== 'completata') return '<span class="scaduta" style="color:var(--ambra)">Scade oggi</span>';
+  return `<span class="nota">Scadenza ${dataItaliana(a.scadenza)}</span>`;
+}
+
+/* --- 5.2 Cruscotto --- */
+function contaSintesi(elenco) {
+  const oggi = oggiArchivio(), fraSette = oggiArchivio(7), inizioMese = oggi.slice(0, 8) + '01';
+  return {
+    inScadenza: elenco.filter((a) => a.stato !== 'completata' && a.scadenza && a.scadenza >= oggi && a.scadenza <= fraSette).length,
+    scadute: elenco.filter(inRitardo).length,
+    inCorso: elenco.filter((a) => a.stato === 'in_corso' && miRiguarda(a)).length,
+    completateMese: elenco.filter((a) => a.stato === 'completata' && a.completata_il && a.completata_il.slice(0, 10) >= inizioMese).length
+  };
+}
+function riquadroSintesi(numero, didascalia, filtro, allarme = false) {
+  return `<button type="button" class="scheda sintesi" data-sintesi="${filtro}">
+      <div class="numero ${allarme && numero ? 'allarme' : ''}">${numero}</div>
+      <div class="didascalia">${didascalia}</div></button>`;
+}
+function attivitaDiOggi(elenco) {
+  return elenco.filter((a) => a.stato !== 'completata' && miRiguarda(a))
+    .sort((a, b) => (PESO_PRIORITA[b.priorita] - PESO_PRIORITA[a.priorita]) || confrontaScadenza(a, b))
+    .slice(0, 10);
+}
+function rigaAttivita(a, conContatto = true) {
+  const sotto = conContatto && a.contatto ? `<small>${proteggi(a.contatto.nome)}</small>` : '';
+  return `<button type="button" class="riga-attivita p-${a.priorita} ${inRitardo(a) ? 'in-ritardo' : ''}" data-apri-attivita="${a.id}">
+      <span class="titolo">${proteggi(a.titolo)}${sotto}</span>
+      ${etichettaPriorita(a.priorita)} ${etichettaStato(a.stato)} ${etichettaScadenza(a)}
+    </button>`;
+}
+function voceCronologia(evento, conTitolo = false) {
+  const chi = evento.utente_id ? nominativo(evento.utente_id) : 'Il sistema';
+  const dove = conTitolo && evento.attivita?.titolo
+    ? ` — <a href="#" data-apri-attivita="${evento.attivita.id}">«${proteggi(evento.attivita.titolo)}»</a>` : '';
+  return `<div class="voce-cronologia">
+      <span class="quando">${dataItaliana(evento.creato_il, true)}</span>
+      <span>${proteggi(chi)} ${AZIONI_REGISTRO[evento.azione] ?? evento.azione}${dove}</span></div>`;
+}
+function disegnaCruscotto() {
+  const elenco = tutteLeAttivita();
+  const s = contaSintesi(elenco);
+  const oggi = attivitaDiOggi(elenco);
+  const movimenti = elencaUltimiMovimenti();
+  const aperte = elenco.filter((a) => a.stato !== 'completata').length;
+  const chiuse = elenco.length - aperte;
+  const percento = elenco.length ? Math.round((chiuse / elenco.length) * 100) : 0;
+  const ora = new Date().getHours();
+  const saluto = ora < 13 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
+  $('#contenuto').innerHTML = `
+    <div class="intestazione-sezione">
+      <h1>Cruscotto</h1>
+      <span class="nota">${saluto}, ${proteggi(stato.profilo.nome)}. Oggi è ${new Date().toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long' })}.</span>
+      <button type="button" class="principale" id="pulsante-nuova-attivita">Nuova attività</button>
+    </div>
+    <div class="griglia-sintesi">
+      ${riquadroSintesi(s.inScadenza, 'In scadenza entro sette giorni', 'settegiorni')}
+      ${riquadroSintesi(s.scadute, 'Scadute e non completate', 'scadute', true)}
+      ${riquadroSintesi(s.inCorso, 'In corso e assegnate a me', 'incorso')}
+      ${riquadroSintesi(s.completateMese, 'Completate questo mese', 'completate')}
+    </div>
+    <div class="due-colonne">
+      <div>
+        <h2>Le mie attività di oggi</h2>
+        <div class="elenco" style="margin-bottom:1.5rem">
+          ${oggi.length ? oggi.map((a) => rigaAttivita(a)).join('') : '<div class="scheda vuoto">Nessuna attività aperta che ti riguardi.</div>'}
+        </div>
+      </div>
+      <div>
+        <h2>Avanzamento generale</h2>
+        <div class="scheda" style="margin-bottom:1.25rem">
+          <div class="barra-avanzamento" role="img" aria-label="${percento}% delle attività completate"><i style="width:${percento}%"></i></div>
+          <p class="nota" style="margin:0">${chiuse} completate su ${elenco.length} (${percento}%). ${aperte} ancora aperte.</p>
+          <div class="riga-etichette" style="margin-top:.6rem">
+            ${Object.entries(STATI).map(([k, t]) => `<span class="etichetta stato-${k}">${t}: ${elenco.filter((a) => a.stato === k).length}</span>`).join('')}
+          </div>
+        </div>
+        <h2>Ultimi movimenti</h2>
+        <div class="scheda">
+          ${movimenti.length ? movimenti.map((e) => voceCronologia(e, true)).join('') : '<div class="vuoto">Nessun movimento registrato.</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* --- 5.3 Attività --- */
+function opzioni(voci, selezionata, primaVoce) {
+  return `<option value="">${primaVoce}</option>` + voci.map(([v, t]) =>
+    `<option value="${proteggi(v)}" ${v === selezionata ? 'selected' : ''}>${proteggi(t)}</option>`).join('');
+}
+function disegnaFiltri() {
+  const f = stato.filtri;
+  const persone = profiliAttivi().map((p) => [p.id, `${p.nome} ${p.cognome}`]);
+  const attivi = Object.entries(f).filter(([k, v]) => v && k !== 'soloMie').length + (f.soloMie ? 1 : 0);
+  return `<div class="filtri">
+      <div class="campo"><label for="filtro-testo">Cerca nel testo</label>
+        <input id="filtro-testo" type="search" value="${proteggi(f.testo)}" placeholder="Titolo o descrizione"></div>
+      <div class="campo"><label for="filtro-stato">Stato</label>
+        <select id="filtro-stato">${opzioni(Object.entries(STATI), f.stato, 'Tutti gli stati')}</select></div>
+      <div class="campo"><label for="filtro-priorita">Priorità</label>
+        <select id="filtro-priorita">${opzioni(Object.entries(PRIORITA), f.priorita, 'Tutte le priorità')}</select></div>
+      <div class="campo"><label for="filtro-partecipante">Partecipante</label>
+        <select id="filtro-partecipante">${opzioni(persone, f.partecipante, 'Chiunque')}</select></div>
+      <div class="campo"><label for="filtro-contatto">Contatto collegato</label>
+        <select id="filtro-contatto">${opzioni(contattiOrdinati().map((c) => [c.id, c.nome]), f.contatto, 'Qualunque contatto')}</select></div>
+      <div class="campo"><label for="filtro-da">Scadenza dal</label><input id="filtro-da" type="date" value="${proteggi(f.daScadenza)}"></div>
+      <div class="campo"><label for="filtro-a">Scadenza al</label><input id="filtro-a" type="date" value="${proteggi(f.aScadenza)}"></div>
+      <div class="campo"><label for="filtro-ordine">Ordina per</label>
+        <select id="filtro-ordine">
+          ${[['scadenza','Scadenza'],['priorita','Priorità'],['creazione','Data di creazione'],['aggiornamento','Ultimo aggiornamento']]
+            .map(([v, t]) => `<option value="${v}" ${stato.ordine === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="riga-interruttori">
+      <span class="interruttore"><input id="filtro-mie" type="checkbox" ${f.soloMie ? 'checked' : ''}><label for="filtro-mie">Solo le mie</label></span>
+      <button type="button" class="secondario" id="pulsante-azzera-filtri" ${attivi ? '' : 'disabled'}>Azzera i filtri${attivi ? ` (${attivi})` : ''}</button>
+      <span class="nota">${stato.attivita.length} attività${stato.altrePagine ? ' mostrate' : ''}</span>
+      <span class="spazio"></span>
+      <button type="button" class="secondario" id="pulsante-vista" aria-pressed="${stato.vistaAttivita === 'colonne'}">
+        ${stato.vistaAttivita === 'elenco' ? 'Vista a colonne' : 'Vista a elenco'}</button>
+    </div>`;
+}
+function cartellino(a) {
+  return `<div class="cartellino p-${a.priorita} ${inRitardo(a) ? 'in-ritardo' : ''}" draggable="true" tabindex="0" role="button"
+        data-apri-attivita="${a.id}" data-trascina="${a.id}" aria-label="${proteggi(a.titolo)}, ${STATI[a.stato]}">
+      <span class="titolo">${proteggi(a.titolo)}</span>
+      ${a.contatto ? `<span class="nota" style="display:block;margin-bottom:.3rem">${proteggi(a.contatto.nome)}</span>` : ''}
+      <span class="riga-etichette">${etichettaPriorita(a.priorita)} ${etichettaScadenza(a)}</span>
+    </div>`;
+}
+function disegnaColonne(elenco) {
+  return `<div class="colonne">${Object.entries(STATI).map(([chiave, testo]) => {
+      const dentro = elenco.filter((a) => a.stato === chiave);
+      return `<section class="colonna" data-colonna="${chiave}" aria-label="${testo}">
+          <h3><span>${testo}</span><span>${dentro.length}</span></h3>
+          ${dentro.map(cartellino).join('') || '<p class="nota">Nessuna attività.</p>'}</section>`;
+    }).join('')}</div>`;
+}
+function disegnaAttivita() {
+  const elenco = stato.attivita;
+  const corpo = stato.vistaAttivita === 'colonne'
+    ? disegnaColonne(elenco)
+    : `<div class="elenco">${elenco.length ? elenco.map((a) => rigaAttivita(a)).join('')
+        : '<div class="scheda vuoto">Nessuna attività corrisponde ai filtri scelti.</div>'}</div>`;
+  $('#contenuto').innerHTML = `
+    <div class="intestazione-sezione">
+      <h1>Attività</h1>
+      <button type="button" class="principale" id="pulsante-nuova-attivita">Nuova attività</button>
+    </div>
+    ${disegnaFiltri()}
+    ${corpo}
+    ${stato.altrePagine && stato.vistaAttivita === 'elenco'
+      ? `<div style="margin-top:1rem"><button type="button" class="secondario grande" id="pulsante-altre">Carica altre ${PER_PAGINA} attività</button></div>` : ''}`;
+}
+
+/* --- 5.3 Pannello di dettaglio attività --- */
+function possoModificare(d) {
+  return amministratore() || d.attivita.creato_da === stato.profilo.id || d.partecipanti.some((p) => p.utente_id === stato.profilo.id);
+}
+function bloccoDati(d, modificabile) {
+  const a = d.attivita, spento = modificabile ? '' : 'disabled';
+  return `<div class="blocco"><h3>Dati dell’attività</h3>
+      <div class="campo"><label for="det-titolo">Titolo</label><input id="det-titolo" value="${proteggi(a.titolo)}" ${spento}></div>
+      <div class="campo"><label for="det-descrizione">Descrizione</label><textarea id="det-descrizione" ${spento}>${proteggi(a.descrizione ?? '')}</textarea></div>
+      <div class="campi-affiancati">
+        <div class="campo"><label for="det-stato">Stato</label><select id="det-stato" ${spento}>${Object.entries(STATI).map(([v, t]) => `<option value="${v}" ${v === a.stato ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div class="campo"><label for="det-priorita">Priorità</label><select id="det-priorita" ${spento}>${Object.entries(PRIORITA).map(([v, t]) => `<option value="${v}" ${v === a.priorita ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      </div>
+      <div class="campi-affiancati">
+        <div class="campo"><label for="det-scadenza">Scadenza</label><input id="det-scadenza" type="date" value="${proteggi(a.scadenza ?? '')}" ${spento}></div>
+        <div class="campo"><label for="det-contatto">Contatto collegato</label><select id="det-contatto" ${spento}>${opzioni(contattiOrdinati().map((c) => [c.id, c.nome]), a.contatto_id ?? '', 'Nessuno')}</select></div>
+      </div>
+      ${modificabile ? '<button type="button" class="principale" id="pulsante-salva-attivita">Salva le modifiche</button>' : '<p class="nota">Puoi soltanto consultare questa attività.</p>'}
+    </div>`;
+}
+function bloccoPartecipanti(d, modificabile) {
+  const dentro = d.partecipanti.map((p) => p.utente_id);
+  const disponibili = profiliAttivi().filter((p) => !dentro.includes(p.id) && p.id !== d.attivita.creato_da);
+  return `<div class="blocco"><h3>Partecipanti</h3>
+      <div><span class="gettone" title="Ha creato l’attività">${proteggi(nominativo(d.attivita.creato_da))} <span class="nota">(creatore)</span></span>
+      ${d.partecipanti.map((p) => `<span class="gettone">${proteggi(nominativo(p.utente_id))}
+          ${modificabile ? `<button type="button" aria-label="Togli ${proteggi(nominativo(p.utente_id))}" data-togli="${p.utente_id}">&times;</button>` : ''}</span>`).join('')}</div>
+      ${modificabile && disponibili.length ? `<div class="campo" style="margin-top:.6rem"><label for="det-invita">Invita una persona</label>
+        <select id="det-invita">${opzioni(disponibili.map((p) => [p.id, `${p.nome} ${p.cognome}`]), '', 'Scegli…')}</select></div>` : ''}
+    </div>`;
+}
+function bloccoCommenti(d, modificabile) {
+  return `<div class="blocco"><h3>Commenti</h3>
+      ${d.commenti.length ? d.commenti.map((c) => `<div class="commento">
+          <div class="firma">${proteggi(nominativo(c.autore_id))} — ${dataItaliana(c.creato_il, true)}</div>
+          <div>${proteggi(c.testo).replace(/\n/g, '<br>')}</div></div>`).join('') : '<p class="nota">Nessun commento.</p>'}
+      ${modificabile ? `<div class="campo" style="margin-top:.6rem"><label for="det-commento">Scrivi un commento</label>
+          <textarea id="det-commento" placeholder="Il tuo commento"></textarea></div>
+        <button type="button" class="secondario" id="pulsante-commenta">Aggiungi il commento</button>` : ''}
+    </div>`;
+}
+function bloccoAllegati(d, modificabile) {
+  return `<div class="blocco"><h3>Allegati</h3>
+      ${d.allegati.length ? d.allegati.map((g) => `<div class="allegato">
+          ${g.tipo === 'collegamento'
+            ? `<a href="${proteggi(g.indirizzo)}" target="_blank" rel="noopener noreferrer">${proteggi(g.etichetta)}</a><span class="nota">(collegamento)</span>`
+            : `<button type="button" class="secondario" data-scarica="${g.id}">${proteggi(g.etichetta)}</button><span class="nota">(file, ${Math.round((g.dimensione ?? 0) / 1024)} KB)</span>`}
+          <span class="spazio"></span>
+          ${modificabile ? `<button type="button" class="icona" data-togli-allegato="${g.id}" aria-label="Togli l’allegato ${proteggi(g.etichetta)}">&times;</button>` : ''}
+        </div>`).join('') : '<p class="nota">Nessun allegato.</p>'}
+      ${modificabile ? `<div class="campi-affiancati" style="margin-top:.7rem">
+          <div class="campo"><label for="det-collegamento">Indirizzo web</label><input id="det-collegamento" type="url" placeholder="https://…"></div>
+          <div class="campo"><label for="det-etichetta">Testo mostrato</label><input id="det-etichetta" placeholder="Come si chiama"></div>
+        </div>
+        <button type="button" class="secondario" id="pulsante-collegamento">Aggiungi il collegamento</button>
+        <div class="campo" style="margin-top:.7rem"><label for="det-file">Carica un file (massimo 1 MB, resta in questo browser)</label><input id="det-file" type="file"></div>` : ''}
+    </div>`;
+}
+function disegnaPannelloAttivita(d) {
+  const a = d.attivita;
+  const modificabile = possoModificare(d);
+  const cancellabile = amministratore() || a.creato_da === stato.profilo.id;
+  const pannello = $('#pannello');
+  pannello.hidden = false;
+  pannello.innerHTML = `
+    <div class="pannello-testata">
+      <div style="flex:1"><h2 style="margin:0">${proteggi(a.titolo)}</h2>
+        <span class="riga-etichette" style="margin-top:.4rem">${etichettaStato(a.stato)} ${etichettaPriorita(a.priorita)} ${etichettaScadenza(a)}</span></div>
+      <button type="button" class="icona" id="chiudi-pannello" aria-label="Chiudi il dettaglio">&times;</button>
+    </div>
+    <div class="pannello-corpo">
+      ${bloccoDati(d, modificabile)}
+      ${bloccoPartecipanti(d, modificabile)}
+      ${bloccoCommenti(d, modificabile)}
+      ${bloccoAllegati(d, modificabile)}
+      <div class="blocco"><h3>Cronologia</h3>${d.registro.length ? d.registro.map((e) => voceCronologia(e)).join('') : '<p class="nota">Nessun movimento.</p>'}</div>
+      <p class="nota">Creata da ${proteggi(nominativo(a.creato_da))} il ${dataItaliana(a.creato_il, true)}.
+        ${a.completata_il ? `Completata da ${proteggi(nominativo(a.completata_da))} il ${dataItaliana(a.completata_il, true)}.` : ''}</p>
+    </div>
+    <div class="pannello-piede">
+      ${modificabile ? (a.stato === 'completata'
+        ? '<button type="button" class="principale grande" id="pulsante-riapri">Riapri l’attività</button>'
+        : '<button type="button" class="principale grande" id="pulsante-completa">Segna come completata</button>') : ''}
+      ${cancellabile ? '<button type="button" class="pericolo" id="pulsante-cancella-attivita">Elimina</button>' : ''}
+    </div>`;
+}
+function chiudiPannello() {
+  $('#pannello').hidden = true;
+  $('#pannello').innerHTML = '';
+  stato.dettaglioAttivita = null;
+  stato.dettaglioContatto = null;
+}
+
+/* --- 5.4 Contatti --- */
+function contattiVisibili() {
+  const cerca = stato.ricercaContatti.trim().toLowerCase();
+  const { colonna, crescente } = stato.ordineContatti;
+  return archivio.contatti.filter((c) => !cerca || [c.nome, c.ente, c.ruolo_contatto, c.telefono, c.posta_elettronica, (c.etichette ?? []).join(' ')]
+      .some((campo) => String(campo ?? '').toLowerCase().includes(cerca)))
+    .sort((a, b) => {
+      const r = String(a[colonna] ?? '').localeCompare(String(b[colonna] ?? ''), 'it');
+      return crescente ? r : -r;
+    });
+}
+function colonnaOrdinabile(chiave, testo) {
+  const attiva = stato.ordineContatti.colonna === chiave;
+  const verso = attiva ? (stato.ordineContatti.crescente ? '▲' : '▼') : '';
+  return `<th aria-sort="${attiva ? (stato.ordineContatti.crescente ? 'ascending' : 'descending') : 'none'}">
+      <button type="button" data-ordina-contatti="${chiave}">${testo} ${verso}</button></th>`;
+}
+function disegnaContatti() {
+  const elenco = contattiVisibili();
+  const conteggi = new Map();
+  archivio.attivita.forEach((a) => { if (a.contatto_id && a.stato !== 'completata') conteggi.set(a.contatto_id, (conteggi.get(a.contatto_id) ?? 0) + 1); });
+  $('#contenuto').innerHTML = `
+    <div class="intestazione-sezione">
+      <h1>Contatti</h1>
+      <button type="button" class="secondario" id="pulsante-esporta">Esporta in CSV</button>
+      <button type="button" class="principale" id="pulsante-nuovo-contatto">Nuovo contatto</button>
+    </div>
+    <div class="campo" style="max-width:24rem"><label for="ricerca-contatti">Cerca nell’anagrafica</label>
+      <input id="ricerca-contatti" type="search" value="${proteggi(stato.ricercaContatti)}" placeholder="Nome, ente, telefono, etichetta"></div>
+    <div class="contenitore-tabella"><table>
+      <caption class="solo-lettore">Elenco dei contatti condivisi</caption>
+      <thead><tr>
+        ${colonnaOrdinabile('nome', 'Nome')}${colonnaOrdinabile('ente', 'Ente')}${colonnaOrdinabile('ruolo_contatto', 'Qualifica')}
+        ${colonnaOrdinabile('telefono', 'Telefono')}${colonnaOrdinabile('posta_elettronica', 'Posta elettronica')}
+        <th>Etichette</th><th>Attività aperte</th>
+      </tr></thead>
+      <tbody>${elenco.length ? elenco.map((c) => `<tr data-apri-contatto="${c.id}" tabindex="0" role="button">
+          <td><strong>${proteggi(c.nome)}</strong></td><td>${proteggi(c.ente ?? '')}</td>
+          <td>${proteggi(c.ruolo_contatto ?? '')}</td><td>${proteggi(c.telefono ?? '')}</td>
+          <td>${proteggi(c.posta_elettronica ?? '')}</td>
+          <td>${(c.etichette ?? []).map((e) => `<span class="etichetta senza-punto">${proteggi(e)}</span>`).join(' ')}</td>
+          <td>${conteggi.get(c.id) ?? 0}</td></tr>`).join('')
+        : '<tr><td colspan="7"><div class="vuoto">Nessun contatto trovato.</div></td></tr>'}</tbody>
+    </table></div>
+    <p class="nota" style="margin-top:.8rem">${elenco.length} contatti${stato.ricercaContatti ? ' trovati' : ''}. Clicca su una riga per aprire la scheda.</p>`;
+}
+function disegnaPannelloContatto(contatto, collegate) {
+  const pannello = $('#pannello');
+  pannello.hidden = false;
+  const riga = (etichetta, valore, collegamento) => `<p><strong>${etichetta}:</strong> ${valore
+    ? (collegamento ? `<a href="${collegamento}">${proteggi(valore)}</a>` : proteggi(valore)) : '—'}</p>`;
+  pannello.innerHTML = `
+    <div class="pannello-testata">
+      <div style="flex:1"><h2 style="margin:0">${proteggi(contatto.nome)}</h2><span class="nota">${proteggi(contatto.ente ?? '')}</span></div>
+      <button type="button" class="icona" id="chiudi-pannello" aria-label="Chiudi il dettaglio">&times;</button>
+    </div>
+    <div class="pannello-corpo">
+      <div class="blocco"><h3>Scheda</h3>
+        ${riga('Qualifica', contatto.ruolo_contatto)}
+        ${riga('Telefono', contatto.telefono, contatto.telefono ? `tel:${proteggi(contatto.telefono.replace(/\s/g, ''))}` : null)}
+        ${riga('Posta elettronica', contatto.posta_elettronica, contatto.posta_elettronica ? `mailto:${proteggi(contatto.posta_elettronica)}` : null)}
+        ${riga('Indirizzo', contatto.indirizzo)}
+        <p><strong>Etichette:</strong> ${(contatto.etichette ?? []).length ? contatto.etichette.map((e) => `<span class="etichetta senza-punto">${proteggi(e)}</span>`).join(' ') : '—'}</p>
+        <p><strong>Note:</strong><br>${proteggi(contatto.note || '—').replace(/\n/g, '<br>')}</p>
+        <p class="nota">Aggiornato il ${dataItaliana(contatto.aggiornato_il, true)}.</p>
+      </div>
+      <div class="blocco"><h3>Attività collegate</h3>
+        <div class="elenco">${collegate.length ? collegate.map((a) => rigaAttivita(a, false)).join('') : '<p class="nota">Nessuna attività collegata a questo contatto.</p>'}</div>
+        <button type="button" class="secondario" id="pulsante-attivita-per-contatto" style="margin-top:.6rem">Nuova attività per questo contatto</button>
+      </div>
+    </div>
+    <div class="pannello-piede">
+      <button type="button" class="principale" id="pulsante-modifica-contatto">Modifica</button>
+      ${amministratore() ? '<button type="button" class="pericolo" id="pulsante-cancella-contatto">Elimina</button>' : ''}
+    </div>`;
+}
+function costruisciCsv(elenco) {
+  const intestazioni = ['Nome', 'Ente', 'Qualifica', 'Telefono', 'Posta elettronica', 'Indirizzo', 'Etichette', 'Note'];
+  const cella = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const righe = elenco.map((c) => [c.nome, c.ente, c.ruolo_contatto, c.telefono, c.posta_elettronica, c.indirizzo, (c.etichette ?? []).join(' | '), c.note].map(cella).join(';'));
+  return '﻿' + [intestazioni.join(';'), ...righe].join('\r\n');
+}
+
+/* --- 5.5 Utenti --- */
+function disegnaUtenti() {
+  $('#contenuto').innerHTML = `
+    <div class="intestazione-sezione">
+      <h1>Utenti</h1>
+      <button type="button" class="principale" id="pulsante-nuovo-utente">Nuovo utente</button>
+    </div>
+    <div class="contenitore-tabella"><table>
+      <caption class="solo-lettore">Elenco degli utenti del gestionale</caption>
+      <thead><tr><th>Nome</th><th>Cognome</th><th>Posta elettronica</th><th>Ruolo</th><th>Stato</th><th>Ultimo accesso</th><th>Attività</th><th>Azioni</th></tr></thead>
+      <tbody>${archivio.profili.slice().sort((a, b) => a.cognome.localeCompare(b.cognome, 'it')).map(rigaUtente).join('')}</tbody>
+    </table></div>
+    <p class="nota" style="margin-top:.8rem">Gli utenti disattivati non compaiono nella schermata di accesso e non si possono più invitare; le loro attività restano visibili.</p>`;
+}
+function rigaUtente(p) {
+  const io = p.id === stato.profilo.id;
+  const quante = archivio.attivita.filter((a) => a.stato !== 'completata'
+    && (a.creato_da === p.id || archivio.partecipanti.some((x) => x.attivita_id === a.id && x.utente_id === p.id))).length;
+  return `<tr>
+      <td>${proteggi(p.nome)}</td><td>${proteggi(p.cognome)}</td><td>${proteggi(p.posta_elettronica)}</td>
+      <td>${p.ruolo === 'amministratore' ? 'Amministratore' : 'Collaboratore'}</td>
+      <td><span class="etichetta ${p.attivo ? 'stato-completata' : ''}">${p.attivo ? 'Attivo' : 'Disattivato'}</span></td>
+      <td>${dataItaliana(p.ultimo_accesso, true)}</td>
+      <td>${quante} aperte</td>
+      <td><div class="azioni">
+        <button type="button" class="secondario" data-modifica-utente="${p.id}">Modifica</button>
+        <button type="button" class="secondario" data-cambia-ruolo="${p.id}" ${io ? 'disabled' : ''}>Cambia ruolo</button>
+        ${p.attivo
+          ? `<button type="button" class="pericolo" data-disattiva="${p.id}" ${io ? 'disabled' : ''}>Disattiva</button>`
+          : `<button type="button" class="secondario" data-riattiva="${p.id}">Riattiva</button>`}
+      </div></td></tr>`;
+}
+
+/* --- 5.6 Profilo --- */
+function disegnaProfilo() {
+  const p = stato.profilo;
+  const peso = Math.round((localStorage.getItem(CHIAVI_LOCALI.archivio) ?? '').length / 1024);
+  $('#contenuto').innerHTML = `
+    <h1>Profilo</h1>
+    <div class="scheda" style="max-width:34rem;margin-bottom:1rem">
+      <h2>Dati personali</h2>
+      <div class="campi-affiancati">
+        <div class="campo"><label for="pro-nome">Nome</label><input id="pro-nome" value="${proteggi(p.nome)}"></div>
+        <div class="campo"><label for="pro-cognome">Cognome</label><input id="pro-cognome" value="${proteggi(p.cognome)}"></div>
+      </div>
+      <div class="campo"><label for="pro-telefono">Telefono</label><input id="pro-telefono" value="${proteggi(p.telefono ?? '')}"></div>
+      <div class="campo"><label for="pro-posta">Posta elettronica</label><input id="pro-posta" value="${proteggi(p.posta_elettronica)}" ${amministratore() ? '' : 'disabled'}></div>
+      <p class="nota">Ruolo: ${p.ruolo === 'amministratore' ? 'Amministratore' : 'Collaboratore'}. ${amministratore() ? '' : 'L’indirizzo di posta elettronica e il ruolo li cambia l’amministratore.'}</p>
+      <button type="button" class="principale" id="pulsante-salva-profilo">Salva i dati</button>
+    </div>
+    <div class="scheda" style="max-width:34rem;margin-bottom:1rem">
+      <h2>Archivio</h2>
+      <p class="nota">I dati sono custoditi in questo browser (${peso} KB): ${archivio.attivita.length} attività, ${archivio.contatti.length} contatti, ${archivio.profili.length} utenti.
+        Una copia di sicurezza periodica ti mette al riparo dalla pulizia dei dati del browser.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="secondario" id="pulsante-esporta-archivio">Scarica una copia di sicurezza</button>
+        <button type="button" class="secondario" id="pulsante-importa-archivio">Ripristina da una copia</button>
+        <input id="file-importa-archivio" type="file" accept="application/json,.json" hidden>
+      </div>
+      ${amministratore() ? `<div style="margin-top:.8rem"><button type="button" class="pericolo" id="pulsante-azzera-archivio">Svuota l’archivio e ricarica i dati dimostrativi</button></div>` : ''}
+    </div>
+    <div class="scheda" style="max-width:34rem">
+      <h2>Sessione</h2>
+      <p class="nota">Sei entrato come ${proteggi(p.nome)} ${proteggi(p.cognome)}. Uscendo torni alla scelta della persona.</p>
+      <button type="button" class="pericolo" id="pulsante-esci">Esci</button>
+    </div>`;
+}
+
+/* --- 5.7 Modale e moduli --- */
+function apriModale(titolo, contenuto, azioni) {
+  const modale = $('#modale');
+  modale.hidden = false;
+  modale.innerHTML = `<div class="modale-riquadro" role="document"><h2>${proteggi(titolo)}</h2>${contenuto}<div class="modale-azioni">${azioni}</div></div>`;
+  modale.querySelector('input,textarea,select,button')?.focus();
+}
+function chiudiModale() { $('#modale').hidden = true; $('#modale').innerHTML = ''; }
+function chiediConferma(nomeOggetto, alConfermare) {
+  apriModale('Confermi la cancellazione?',
+    `<p>Stai per eliminare definitivamente <strong>${proteggi(nomeOggetto)}</strong>. L’operazione non si può annullare.</p>`,
+    `<button type="button" class="pericolo" id="conferma-si">Sì, elimina</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
+  $('#conferma-si').addEventListener('click', () => { chiudiModale(); alConfermare(); });
+  $('#conferma-no').addEventListener('click', chiudiModale);
+}
+function moduloContatto(c = {}) {
+  return `<div class="campo"><label for="con-nome">Nome</label><input id="con-nome" required value="${proteggi(c.nome ?? '')}"></div>
+    <div class="campi-affiancati">
+      <div class="campo"><label for="con-ente">Ente, azienda o associazione</label><input id="con-ente" value="${proteggi(c.ente ?? '')}"></div>
+      <div class="campo"><label for="con-qualifica">Qualifica</label><input id="con-qualifica" value="${proteggi(c.ruolo_contatto ?? '')}"></div>
+    </div>
+    <div class="campi-affiancati">
+      <div class="campo"><label for="con-telefono">Telefono</label><input id="con-telefono" type="tel" value="${proteggi(c.telefono ?? '')}"></div>
+      <div class="campo"><label for="con-posta">Posta elettronica</label><input id="con-posta" type="email" value="${proteggi(c.posta_elettronica ?? '')}"></div>
+    </div>
+    <div class="campo"><label for="con-indirizzo">Indirizzo</label><input id="con-indirizzo" value="${proteggi(c.indirizzo ?? '')}"></div>
+    <div class="campo"><label for="con-etichette">Etichette, separate da virgola</label><input id="con-etichette" value="${proteggi((c.etichette ?? []).join(', '))}" list="etichette-note"></div>
+    <datalist id="etichette-note">${[...new Set(archivio.contatti.flatMap((x) => x.etichette ?? []))].map((e) => `<option value="${proteggi(e)}">`).join('')}</datalist>
+    <div class="campo"><label for="con-note">Note</label><textarea id="con-note">${proteggi(c.note ?? '')}</textarea></div>`;
+}
+function moduloAttivita(contattoId = '') {
+  const persone = profiliAttivi().filter((p) => p.id !== stato.profilo.id);
+  return `<div class="campo"><label for="nuo-titolo">Titolo</label><input id="nuo-titolo" required></div>
+    <div class="campo"><label for="nuo-descrizione">Descrizione</label><textarea id="nuo-descrizione"></textarea></div>
+    <div class="campi-affiancati">
+      <div class="campo"><label for="nuo-priorita">Priorità</label><select id="nuo-priorita">${Object.entries(PRIORITA).map(([v, t]) => `<option value="${v}" ${v === 'media' ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div class="campo"><label for="nuo-scadenza">Scadenza</label><input id="nuo-scadenza" type="date"></div>
+    </div>
+    <div class="campo"><label for="nuo-contatto">Contatto collegato</label><select id="nuo-contatto">${opzioni(contattiOrdinati().map((c) => [c.id, c.nome]), contattoId, 'Nessuno')}</select></div>
+    <div class="campo"><label>Invita altre persone</label>
+      ${persone.length ? persone.map((p) => `<span class="interruttore" style="margin:.2rem .8rem .2rem 0;display:inline-flex">
+        <input type="checkbox" id="nuo-p-${p.id}" data-partecipante="${p.id}"><label for="nuo-p-${p.id}">${proteggi(p.nome)} ${proteggi(p.cognome)}</label></span>`).join('')
+        : '<p class="nota">Non ci sono altre persone attive.</p>'}</div>`;
+}
+function moduloUtente(p = {}) {
+  return `<div class="campi-affiancati">
+      <div class="campo"><label for="ute-nome">Nome</label><input id="ute-nome" required value="${proteggi(p.nome ?? '')}"></div>
+      <div class="campo"><label for="ute-cognome">Cognome</label><input id="ute-cognome" required value="${proteggi(p.cognome ?? '')}"></div>
+    </div>
+    <div class="campo"><label for="ute-posta">Posta elettronica</label><input id="ute-posta" type="email" required value="${proteggi(p.posta_elettronica ?? '')}"></div>
+    <div class="campo"><label for="ute-telefono">Telefono</label><input id="ute-telefono" type="tel" value="${proteggi(p.telefono ?? '')}"></div>
+    <div class="campo"><label for="ute-ruolo">Ruolo</label>
+      <select id="ute-ruolo" ${p.id && p.id === stato.profilo.id ? 'disabled' : ''}>
+        <option value="collaboratore" ${p.ruolo !== 'amministratore' ? 'selected' : ''}>Collaboratore</option>
+        <option value="amministratore" ${p.ruolo === 'amministratore' ? 'selected' : ''}>Amministratore</option></select></div>`;
+}
+
+/* --- 5.8 Schermata di accesso --- */
+function disegnaAccesso() {
+  const persone = profiliAttivi().slice().sort((a, b) => a.cognome.localeCompare(b.cognome, 'it'));
+  $('#elenco-accesso').innerHTML = persone.length ? persone.map((p) => `
+    <button type="button" class="persona" data-entra="${p.id}">
+      <span class="iniziali" aria-hidden="true">${proteggi(iniziali(p))}</span>
+      <span><strong>${proteggi(p.nome)} ${proteggi(p.cognome)}</strong>
+        <span class="ruolo">${p.ruolo === 'amministratore' ? 'Amministratore' : 'Collaboratore'}${p.ultimo_accesso ? ` · ultimo accesso ${dataItaliana(p.ultimo_accesso)}` : ''}</span></span>
+    </button>`).join('') : '<p class="vuoto">Nessun utente attivo nell’archivio.</p>';
+}
+
+/* =====================================================================
+   6. GESTORI DI EVENTI
+   ===================================================================== */
+
+/* --- 6.1 Navigazione --- */
+function aggiornaBarraLaterale() {
+  $$('#barra-laterale [data-sezione]').forEach((b) => {
+    if (b.dataset.sezione === stato.sezione) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  $('#voce-utenti').hidden = !amministratore();
+  $('#piede-barra').textContent = `${stato.profilo.nome} ${stato.profilo.cognome} · ${amministratore() ? 'amministratore' : 'collaboratore'}`;
+}
+function alternaMenu(apri) {
+  $('#barra-laterale').classList.toggle('aperta', apri);
+  $('#velo').hidden = !apri;
+  $('#pulsante-menu').setAttribute('aria-expanded', String(apri));
+}
+function vaiA(sezione) {
+  if (sezione === 'utenti' && !amministratore()) sezione = 'cruscotto';
+  if (sezione !== stato.sezione) $('#contenuto').scrollTop = 0;
+  stato.sezione = sezione;
+  aggiornaBarraLaterale();
+  alternaMenu(false);
+  try {
+    if (sezione === 'cruscotto') disegnaCruscotto();
+    else if (sezione === 'attivita') { elencaAttivita(true); disegnaAttivita(); }
+    else if (sezione === 'contatti') disegnaContatti();
+    else if (sezione === 'utenti') disegnaUtenti();
+    else disegnaProfilo();
+  } catch (errore) {
+    avvisa(spiegaErrore(errore, 'apertura della sezione'), 'errore');
+  }
+}
+function ridisegna() {
+  const attivoPrima = document.activeElement?.id;
+  const posizione = document.activeElement?.selectionStart ?? null;
+  const scorrimento = $('#contenuto').scrollTop;
+  vaiA(stato.sezione);
+  $('#contenuto').scrollTop = scorrimento;
+  if (!attivoPrima) return;
+  const nodo = document.getElementById(attivoPrima);
+  if (!nodo) return;
+  nodo.focus({ preventScroll:true });
+  if (posizione !== null && nodo.setSelectionRange) { try { nodo.setSelectionRange(posizione, posizione); } catch { /* campo non testuale */ } }
+}
+
+/* --- 6.2 Pannelli di dettaglio --- */
+function apriAttivita(id) {
+  const d = leggiDettaglioAttivita(id);
+  if (!d) { avvisa('Questa attività non esiste più.', 'errore'); chiudiPannello(); return; }
+  stato.dettaglioContatto = null;
+  stato.dettaglioAttivita = d;
+  const scorrimento = $('#pannello .pannello-corpo')?.scrollTop ?? 0;
+  disegnaPannelloAttivita(d);
+  const corpo = $('#pannello .pannello-corpo');
+  if (corpo) corpo.scrollTop = scorrimento;
+}
+function apriContatto(id) {
+  const c = archivio.contatti.find((x) => x.id === id);
+  if (!c) { avvisa('Questo contatto non esiste più.', 'errore'); chiudiPannello(); return; }
+  stato.dettaglioAttivita = null;
+  stato.dettaglioContatto = c;
+  const collegate = ordina(tutteLeAttivita().filter((a) => a.contatto_id === id));
+  disegnaPannelloContatto(c, collegate);
+}
+
+/* --- 6.3 Azioni sulle attività --- */
+function salvaDalPannello() {
+  const id = stato.dettaglioAttivita.attivita.id;
+  const titolo = $('#det-titolo').value.trim();
+  if (!titolo) { avvisa('Il titolo non può restare vuoto.', 'errore'); $('#det-titolo').focus(); return; }
+  try {
+    aggiornaAttivita(id, {
+      titolo, descrizione: $('#det-descrizione').value.trim(), stato: $('#det-stato').value,
+      priorita: $('#det-priorita').value, scadenza: $('#det-scadenza').value, contatto_id: $('#det-contatto').value
+    });
+    avvisa('Modifiche salvate.', 'bene');
+    apriAttivita(id); ridisegna();
+  } catch (errore) { avvisa(spiegaErrore(errore, 'salvataggio'), 'errore'); }
+}
+function cambiaStatoAttivita(id, nuovoStato) {
+  const a = archivio.attivita.find((x) => x.id === id);
+  if (!a || a.stato === nuovoStato) return;
+  const d = leggiDettaglioAttivita(id);
+  if (!possoModificare(d)) { avvisa('Non hai i permessi per modificare questa attività.', 'errore'); return; }
+  try {
+    aggiornaAttivita(id, { stato: nuovoStato });
+    avvisa(nuovoStato === 'completata' ? 'Attività completata.' : `Attività spostata in «${STATI[nuovoStato]}».`, 'bene');
+    if (stato.dettaglioAttivita?.attivita.id === id) apriAttivita(id);
+    ridisegna();
+  } catch (errore) { avvisa(spiegaErrore(errore, 'cambio di stato'), 'errore'); }
+}
+function commenta() {
+  const testo = $('#det-commento').value.trim();
+  if (!testo) { avvisa('Scrivi qualcosa prima di aggiungere il commento.', 'errore'); return; }
+  const id = stato.dettaglioAttivita.attivita.id;
+  try { scriviCommento(id, testo); apriAttivita(id); if (stato.sezione === 'cruscotto') ridisegna(); }
+  catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del commento'), 'errore'); }
+}
+function aggiungiCollegamento() {
+  const indirizzo = $('#det-collegamento').value.trim();
+  const etichetta = $('#det-etichetta').value.trim() || indirizzo;
+  if (!/^https?:\/\/\S+/i.test(indirizzo)) { avvisa('Inserisci un indirizzo web che inizi con http:// o https://.', 'errore'); return; }
+  const id = stato.dettaglioAttivita.attivita.id;
+  try { aggiungiAllegato(id, 'collegamento', etichetta, indirizzo); apriAttivita(id); }
+  catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del collegamento'), 'errore'); }
+}
+function caricaDalPannello(file) {
+  if (!file) return;
+  if (file.size > DIMENSIONE_MASSIMA_FILE) { avvisa('Il file supera la dimensione massima di 1 MB.', 'errore'); return; }
+  const id = stato.dettaglioAttivita.attivita.id;
+  const lettore = new FileReader();
+  lettore.onload = () => {
+    try { aggiungiAllegato(id, 'file', file.name, lettore.result, { mime:file.type, dimensione:file.size }); apriAttivita(id); avvisa('File allegato.', 'bene'); }
+    catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del file'), 'errore'); }
+  };
+  lettore.onerror = () => avvisa('Non è stato possibile leggere il file.', 'errore');
+  lettore.readAsDataURL(file);
+}
+function scaricaAllegato(allegatoId) {
+  const g = archivio.allegati.find((x) => x.id === allegatoId);
+  if (!g) return;
+  const a = document.createElement('a');
+  a.href = g.indirizzo; a.download = g.etichetta; document.body.append(a); a.click(); a.remove();
+}
+function apriModuloAttivita(contattoId = '') {
+  apriModale('Nuova attività', moduloAttivita(contattoId),
+    `<button type="button" class="principale" id="salva-nuova">Crea l’attività</button><button type="button" class="secondario" id="annulla-modale">Annulla</button>`);
+  $('#salva-nuova').addEventListener('click', creaNuovaAttivita);
+  $('#annulla-modale').addEventListener('click', chiudiModale);
+}
+function creaNuovaAttivita() {
+  const titolo = $('#nuo-titolo').value.trim();
+  if (!titolo) { avvisa('Il titolo è obbligatorio.', 'errore'); $('#nuo-titolo').focus(); return; }
+  const partecipanti = $$('#modale [data-partecipante]:checked').map((n) => n.dataset.partecipante);
+  try {
+    const id = creaAttivita({ titolo, descrizione: $('#nuo-descrizione').value.trim(), priorita: $('#nuo-priorita').value,
+      scadenza: $('#nuo-scadenza').value, contatto_id: $('#nuo-contatto').value }, partecipanti);
+    chiudiModale();
+    avvisa('Attività creata.', 'bene');
+    if (stato.sezione !== 'attivita' && stato.sezione !== 'cruscotto') vaiA('attivita'); else ridisegna();
+    apriAttivita(id);
+  } catch (errore) { avvisa(spiegaErrore(errore, 'creazione'), 'errore'); }
+}
+
+/* --- 6.4 Contatti --- */
+function apriModuloContatto(c) {
+  apriModale(c ? 'Modifica il contatto' : 'Nuovo contatto', moduloContatto(c ?? {}),
+    `<button type="button" class="principale" id="salva-contatto">Salva</button><button type="button" class="secondario" id="annulla-modale">Annulla</button>`);
+  $('#salva-contatto').addEventListener('click', () => salvaModuloContatto(c?.id));
+  $('#annulla-modale').addEventListener('click', chiudiModale);
+}
+function salvaModuloContatto(id) {
+  const nome = $('#con-nome').value.trim();
+  if (!nome) { avvisa('Il nome è obbligatorio.', 'errore'); $('#con-nome').focus(); return; }
+  const dati = {
+    nome, ente: $('#con-ente').value.trim(), ruolo_contatto: $('#con-qualifica').value.trim(),
+    telefono: $('#con-telefono').value.trim(), posta_elettronica: $('#con-posta').value.trim(),
+    indirizzo: $('#con-indirizzo').value.trim(),
+    etichette: $('#con-etichette').value.split(',').map((e) => e.trim()).filter(Boolean),
+    note: $('#con-note').value.trim()
+  };
+  try {
+    const nuovoIdContatto = salvaContatto(dati, id);
+    chiudiModale();
+    avvisa(id ? 'Contatto aggiornato.' : 'Contatto creato.', 'bene');
+    if (stato.sezione !== 'contatti') vaiA('contatti'); else ridisegna();
+    apriContatto(nuovoIdContatto);
+  } catch (errore) { avvisa(spiegaErrore(errore, 'salvataggio del contatto'), 'errore'); }
+}
+function esportaContatti() {
+  const elenco = contattiVisibili();
+  scaricaTesto(`contatti-${oggiArchivio()}.csv`, costruisciCsv(elenco), 'text/csv;charset=utf-8');
+  avvisa(`Esportati ${elenco.length} contatti.`, 'bene');
+}
+
+/* --- 6.5 Utenti --- */
+function apriModuloUtente(p) {
+  apriModale(p ? 'Modifica l’utente' : 'Nuovo utente', moduloUtente(p ?? {}),
+    `<button type="button" class="principale" id="salva-utente">Salva</button><button type="button" class="secondario" id="annulla-modale">Annulla</button>`);
+  $('#salva-utente').addEventListener('click', () => salvaModuloUtente(p?.id));
+  $('#annulla-modale').addEventListener('click', chiudiModale);
+}
+function salvaModuloUtente(id) {
+  const dati = {
+    nome: $('#ute-nome').value.trim(), cognome: $('#ute-cognome').value.trim(),
+    posta_elettronica: $('#ute-posta').value.trim().toLowerCase(), telefono: $('#ute-telefono').value.trim(),
+    ruolo: $('#ute-ruolo').value
+  };
+  if (!dati.nome || !dati.cognome || !dati.posta_elettronica) { avvisa('Nome, cognome e posta elettronica sono obbligatori.', 'errore'); return; }
+  try {
+    if (id) {
+      const p = leggiProfilo(id);
+      if (archivio.profili.some((x) => x.id !== id && x.posta_elettronica.toLowerCase() === dati.posta_elettronica)) throw new Error('Esiste già un utente con questa posta elettronica.');
+      if (id === stato.profilo.id) delete dati.ruolo;
+      Object.assign(p, dati);
+      salvaArchivio();
+    } else creaUtente(dati);
+    chiudiModale();
+    avvisa(id ? 'Utente aggiornato.' : `Utente creato. ${dati.nome} può entrare scegliendo il suo nome nella schermata di accesso.`, 'bene', 7000);
+    ridisegna();
+  } catch (errore) { avvisa(errore.message || spiegaErrore(errore, 'salvataggio dell’utente'), 'errore'); }
+}
+
+/* --- 6.6 Profilo e archivio --- */
+function salvaProfilo() {
+  const nome = $('#pro-nome').value.trim(), cognome = $('#pro-cognome').value.trim();
+  if (!nome || !cognome) { avvisa('Nome e cognome sono obbligatori.', 'errore'); return; }
+  try {
+    stato.profilo.nome = nome; stato.profilo.cognome = cognome; stato.profilo.telefono = $('#pro-telefono').value.trim();
+    if (amministratore()) stato.profilo.posta_elettronica = $('#pro-posta').value.trim().toLowerCase();
+    salvaArchivio();
+    avvisa('Dati salvati.', 'bene');
+    aggiornaBarraLaterale();
+  } catch (errore) { avvisa(spiegaErrore(errore, 'salvataggio'), 'errore'); }
+}
+function esportaArchivio() {
+  scaricaTesto(`gestionale-copia-${oggiArchivio()}.json`, JSON.stringify(archivio, null, 1), 'application/json');
+  avvisa('Copia di sicurezza scaricata.', 'bene');
+}
+function importaArchivio(file, poi) {
+  if (!file) return;
+  const lettore = new FileReader();
+  lettore.onload = () => {
+    try {
+      const letto = JSON.parse(lettore.result);
+      if (!archivioValido(letto)) throw new Error('Il file non è una copia di sicurezza del gestionale.');
+      apriModale('Confermi il ripristino?',
+        `<p>La copia contiene <strong>${letto.attivita.length} attività</strong>, <strong>${letto.contatti.length} contatti</strong> e <strong>${letto.profili.length} utenti</strong>.
+         Sostituirà tutto l’archivio attuale di questo browser.</p>`,
+        `<button type="button" class="pericolo" id="conferma-si">Sì, sostituisci</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
+      $('#conferma-si').addEventListener('click', () => {
+        archivio = letto; salvaArchivio(); chiudiModale();
+        avvisa('Archivio ripristinato.', 'bene');
+        poi();
+      });
+      $('#conferma-no').addEventListener('click', chiudiModale);
+    } catch (errore) { avvisa(errore.message || 'File non leggibile.', 'errore'); }
+  };
+  lettore.readAsText(file);
+}
+function azzeraArchivio() {
+  apriModale('Svuotare l’archivio?',
+    '<p>Tutte le attività, i contatti e gli utenti di questo browser saranno cancellati e sostituiti dai dati dimostrativi. Scarica prima una copia di sicurezza se vuoi conservarli.</p>',
+    `<button type="button" class="pericolo" id="conferma-si">Sì, svuota</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
+  $('#conferma-si').addEventListener('click', () => {
+    archivio = creaDatiDimostrativi(); salvaArchivio(); chiudiModale(); esci();
+    avvisa('Archivio azzerato con i dati dimostrativi.', 'bene');
+  });
+  $('#conferma-no').addEventListener('click', chiudiModale);
+}
+function esci() {
+  localStorage.removeItem(CHIAVI_LOCALI.sessione);
+  stato.profilo = null;
+  chiudiPannello(); chiudiModale();
+  disegnaAccesso();
+  mostraSchermata('accesso');
+}
+
+/* --- 6.7 Notifiche --- */
+function aggiornaCampanella() {
+  const totale = stato.notifiche.attivita + stato.notifiche.commenti;
+  const pallino = $('#pallino-notifiche');
+  pallino.hidden = totale === 0;
+  pallino.textContent = totale > 99 ? '99+' : String(totale);
+  $('#pulsante-notifiche').setAttribute('aria-label', totale ? `Notifiche: ${totale} da leggere` : 'Notifiche: nessuna novità');
+}
+function apriNotifiche() {
+  const voci = stato.notifiche.voci;
+  apriModale('Notifiche',
+    voci.length
+      ? `<p class="nota">${stato.notifiche.attivita} nuovi inviti, ${stato.notifiche.commenti} commenti non letti.</p>`
+        + voci.map((v) => `<div class="commento"><div class="firma">${dataItaliana(v.quando, true)}</div>
+            <button type="button" class="secondario" data-apri-attivita="${v.attivitaId}">${proteggi(v.testo)}</button></div>`).join('')
+      : '<p>Nessuna novità da leggere.</p>',
+    '<button type="button" class="principale" id="chiudi-notifiche">Chiudi</button>');
+  $('#chiudi-notifiche').addEventListener('click', chiudiModale);
+  try { segnaNotificheLette(); aggiornaCampanella(); } catch { /* non critico */ }
+}
+
+/* --- 6.8 Ascoltatore unico dei clic --- */
+document.addEventListener('click', (evento) => {
+  const t = evento.target;
+  const dentro = (sel) => t.closest(sel);
+
+  // Accesso
+  const entra = dentro('[data-entra]');
+  if (entra) { entraCome(entra.dataset.entra); return; }
+  if (dentro('#pulsante-importa-accesso')) { $('#file-importa-accesso').click(); return; }
+
+  // Cornice
+  if (dentro('#pulsante-menu')) { alternaMenu(!$('#barra-laterale').classList.contains('aperta')); return; }
+  if (dentro('#velo')) { alternaMenu(false); return; }
+  if (dentro('#pulsante-tema')) { alternaTema(); return; }
+  if (dentro('#pulsante-profilo')) { vaiA('profilo'); return; }
+  if (dentro('#pulsante-notifiche')) { apriNotifiche(); return; }
+  const voce = dentro('#barra-laterale [data-sezione]');
+  if (voce) { vaiA(voce.dataset.sezione); return; }
+  if (dentro('#chiudi-pannello')) { chiudiPannello(); return; }
+  if (t === $('#modale')) { chiudiModale(); return; }
+
+  // Apertura dettagli (ovunque)
+  const apri = dentro('[data-apri-attivita]');
+  if (apri) { evento.preventDefault(); chiudiModale(); apriAttivita(apri.dataset.apriAttivita); return; }
+  const apriC = dentro('[data-apri-contatto]');
+  if (apriC) { apriContatto(apriC.dataset.apriContatto); return; }
+
+  // Cruscotto
+  const sintesi = dentro('[data-sintesi]');
+  if (sintesi) {
+    const oggi = oggiArchivio();
+    stato.filtri = { testo:'', stato:'', priorita:'', partecipante:'', contatto:'', daScadenza:'', aScadenza:'', soloMie:false };
+    stato.ordine = 'scadenza';
+    const quale = sintesi.dataset.sintesi;
+    if (quale === 'settegiorni') { stato.filtri.daScadenza = oggi; stato.filtri.aScadenza = oggiArchivio(7); }
+    if (quale === 'scadute') { stato.filtri.aScadenza = oggiArchivio(-1); }
+    if (quale === 'incorso') { stato.filtri.stato = 'in_corso'; stato.filtri.soloMie = true; }
+    if (quale === 'completate') { stato.filtri.stato = 'completata'; stato.ordine = 'aggiornamento'; }
+    vaiA('attivita'); return;
+  }
+
+  // Attività
+  if (dentro('#pulsante-nuova-attivita')) { apriModuloAttivita(); return; }
+  if (dentro('#pulsante-vista')) {
+    stato.vistaAttivita = stato.vistaAttivita === 'elenco' ? 'colonne' : 'elenco';
+    localStorage.setItem(CHIAVI_LOCALI.vista, stato.vistaAttivita);
+    ridisegna(); return;
+  }
+  if (dentro('#pulsante-azzera-filtri')) {
+    stato.filtri = { testo:'', stato:'', priorita:'', partecipante:'', contatto:'', daScadenza:'', aScadenza:'', soloMie:false };
+    stato.ordine = 'scadenza'; vaiA('attivita'); return;
+  }
+  if (dentro('#pulsante-altre')) { stato.pagina += 1; elencaAttivita(); disegnaAttivita(); return; }
+
+  // Pannello attività
+  if (stato.dettaglioAttivita && dentro('#pannello')) {
+    const id = stato.dettaglioAttivita.attivita.id;
+    if (dentro('#pulsante-salva-attivita')) { salvaDalPannello(); return; }
+    if (dentro('#pulsante-completa')) { cambiaStatoAttivita(id, 'completata'); return; }
+    if (dentro('#pulsante-riapri')) { cambiaStatoAttivita(id, 'in_corso'); return; }
+    if (dentro('#pulsante-commenta')) { commenta(); return; }
+    if (dentro('#pulsante-collegamento')) { aggiungiCollegamento(); return; }
+    const togli = dentro('[data-togli]');
+    if (togli) { try { togliPartecipante(id, togli.dataset.togli); apriAttivita(id); } catch (e) { avvisa(spiegaErrore(e, 'rimozione'), 'errore'); } return; }
+    const togliG = dentro('[data-togli-allegato]');
+    if (togliG) { try { togliAllegato(togliG.dataset.togliAllegato); apriAttivita(id); } catch (e) { avvisa(spiegaErrore(e, 'rimozione'), 'errore'); } return; }
+    const scarica = dentro('[data-scarica]');
+    if (scarica) { scaricaAllegato(scarica.dataset.scarica); return; }
+    if (dentro('#pulsante-cancella-attivita')) {
+      chiediConferma(`l’attività «${stato.dettaglioAttivita.attivita.titolo}»`, () => {
+        try { cancellaAttivita(id); chiudiPannello(); avvisa('Attività eliminata.', 'bene'); ridisegna(); }
+        catch (e) { avvisa(spiegaErrore(e, 'eliminazione'), 'errore'); }
+      });
+      return;
+    }
+  }
+
+  // Contatti
+  if (dentro('#pulsante-nuovo-contatto')) { apriModuloContatto(null); return; }
+  if (dentro('#pulsante-esporta')) { esportaContatti(); return; }
+  const ordinaC = dentro('[data-ordina-contatti]');
+  if (ordinaC) {
+    const colonna = ordinaC.dataset.ordinaContatti;
+    if (stato.ordineContatti.colonna === colonna) stato.ordineContatti.crescente = !stato.ordineContatti.crescente;
+    else stato.ordineContatti = { colonna, crescente:true };
+    disegnaContatti(); return;
+  }
+  if (stato.dettaglioContatto && dentro('#pannello')) {
+    const c = stato.dettaglioContatto;
+    if (dentro('#pulsante-modifica-contatto')) { apriModuloContatto(c); return; }
+    if (dentro('#pulsante-attivita-per-contatto')) { apriModuloAttivita(c.id); return; }
+    if (dentro('#pulsante-cancella-contatto')) {
+      chiediConferma(`il contatto «${c.nome}»`, () => {
+        try { cancellaContatto(c.id); chiudiPannello(); avvisa('Contatto eliminato.', 'bene'); ridisegna(); }
+        catch (e) { avvisa(spiegaErrore(e, 'eliminazione'), 'errore'); }
+      });
+      return;
+    }
+  }
+
+  // Utenti
+  if (dentro('#pulsante-nuovo-utente')) { apriModuloUtente(null); return; }
+  const modU = dentro('[data-modifica-utente]');
+  if (modU) { apriModuloUtente(leggiProfilo(modU.dataset.modificaUtente)); return; }
+  const ruolo = dentro('[data-cambia-ruolo]');
+  if (ruolo) { cambiaRuolo(ruolo.dataset.cambiaRuolo); avvisa('Ruolo aggiornato.', 'bene'); ridisegna(); return; }
+  const dis = dentro('[data-disattiva]');
+  if (dis) { cambiaAttivazione(dis.dataset.disattiva, false); avvisa('Utente disattivato.', 'bene'); ridisegna(); return; }
+  const ria = dentro('[data-riattiva]');
+  if (ria) { cambiaAttivazione(ria.dataset.riattiva, true); avvisa('Utente riattivato.', 'bene'); ridisegna(); return; }
+
+  // Profilo
+  if (dentro('#pulsante-salva-profilo')) { salvaProfilo(); return; }
+  if (dentro('#pulsante-esporta-archivio')) { esportaArchivio(); return; }
+  if (dentro('#pulsante-importa-archivio')) { $('#file-importa-archivio').click(); return; }
+  if (dentro('#pulsante-azzera-archivio')) { azzeraArchivio(); return; }
+  if (dentro('#pulsante-esci')) { esci(); return; }
+});
+
+// Tastiera: Invio o spazio aprono righe e cartellini; Escape chiude
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape') {
+    if (!$('#modale').hidden) { chiudiModale(); return; }
+    if (!$('#pannello').hidden) { chiudiPannello(); return; }
+    if ($('#barra-laterale').classList.contains('aperta')) alternaMenu(false);
+    return;
+  }
+  if ((evento.key === 'Enter' || evento.key === ' ') && evento.target.matches('[role="button"]:not(button)')) {
+    evento.preventDefault(); evento.target.click();
+  }
+});
+
+/* --- 6.9 Trascinamento dei cartellini --- */
+document.addEventListener('dragstart', (evento) => {
+  const c = evento.target.closest('[data-trascina]');
+  if (c) { evento.dataTransfer.setData('text/plain', c.dataset.trascina); c.classList.add('trascinato'); }
+});
+document.addEventListener('dragend', () => { $$('.trascinato').forEach((c) => c.classList.remove('trascinato')); $$('.colonna').forEach((c) => c.classList.remove('sopra')); });
+document.addEventListener('dragover', (evento) => {
+  const colonna = evento.target.closest('.colonna');
+  if (!colonna) return;
+  evento.preventDefault();
+  $$('.colonna').forEach((c) => c.classList.toggle('sopra', c === colonna));
+});
+document.addEventListener('drop', (evento) => {
+  const colonna = evento.target.closest('.colonna');
+  if (!colonna) return;
+  evento.preventDefault();
+  $$('.colonna').forEach((c) => c.classList.remove('sopra'));
+  const id = evento.dataTransfer.getData('text/plain');
+  if (id) cambiaStatoAttivita(id, colonna.dataset.colonna);
+});
+
+/* --- 6.10 Filtri e campi che cambiano --- */
+const ricercaRitardata = conRitardo(() => ridisegna(), RITARDO_RICERCA);
+const ricercaContattiRitardata = conRitardo(() => {
+  const attivo = document.activeElement?.id;
+  disegnaContatti();
+  if (attivo) { const n = document.getElementById(attivo); n?.focus(); try { n?.setSelectionRange(n.value.length, n.value.length); } catch { /* niente */ } }
+}, RITARDO_RICERCA);
+
+document.addEventListener('input', (evento) => {
+  if (evento.target.id === 'filtro-testo') { stato.filtri.testo = evento.target.value; ricercaRitardata(); }
+  if (evento.target.id === 'ricerca-contatti') { stato.ricercaContatti = evento.target.value; ricercaContattiRitardata(); }
+});
+document.addEventListener('change', (evento) => {
+  const corrispondenze = { 'filtro-stato':'stato', 'filtro-priorita':'priorita', 'filtro-partecipante':'partecipante', 'filtro-contatto':'contatto', 'filtro-da':'daScadenza', 'filtro-a':'aScadenza' };
+  const campo = corrispondenze[evento.target.id];
+  if (campo) { stato.filtri[campo] = evento.target.value; vaiA('attivita'); return; }
+  if (evento.target.id === 'filtro-mie') { stato.filtri.soloMie = evento.target.checked; vaiA('attivita'); return; }
+  if (evento.target.id === 'filtro-ordine') { stato.ordine = evento.target.value; vaiA('attivita'); return; }
+  if (evento.target.id === 'det-invita' && evento.target.value) {
+    const id = stato.dettaglioAttivita.attivita.id;
+    try { invitaPartecipante(id, evento.target.value); apriAttivita(id); } catch (e) { avvisa(spiegaErrore(e, 'invito'), 'errore'); }
+    return;
+  }
+  if (evento.target.id === 'det-file') { caricaDalPannello(evento.target.files[0]); return; }
+  if (evento.target.id === 'file-importa-archivio') { importaArchivio(evento.target.files[0], () => { esci(); }); evento.target.value = ''; return; }
+  if (evento.target.id === 'file-importa-accesso') { importaArchivio(evento.target.files[0], () => { disegnaAccesso(); }); evento.target.value = ''; return; }
+});
+
+// Invio nella finestra modale conferma (non nelle aree di testo)
+document.addEventListener('keydown', (evento) => {
+  if (evento.key !== 'Enter' || $('#modale').hidden || evento.target.matches('textarea,button')) return;
+  const principale = $('#modale .principale');
+  if (principale) { evento.preventDefault(); principale.click(); }
+});
+
+/* --- 6.11 Sincronizzazione fra schede dello stesso browser --- */
+const alCambiamentoAltrui = conRitardo(() => {
+  try {
+    const testo = localStorage.getItem(CHIAVI_LOCALI.archivio);
+    if (!testo) return;
+    const letto = JSON.parse(testo);
+    if (!archivioValido(letto)) return;
+    archivio = letto;
+    if (!stato.profilo) { disegnaAccesso(); return; }
+    stato.profilo = leggiProfilo(stato.profilo.id);
+    if (!stato.profilo || !stato.profilo.attivo) { esci(); avvisa('Il tuo utente è stato modificato: accedi di nuovo.', 'errore'); return; }
+    contaNotifiche(); aggiornaCampanella();
+    if (document.activeElement?.matches('input,textarea,select')) return;
+    if (stato.dettaglioAttivita) apriAttivita(stato.dettaglioAttivita.attivita.id);
+    if (stato.dettaglioContatto) apriContatto(stato.dettaglioContatto.id);
+    if (stato.sezione !== 'profilo') ridisegna();
+  } catch { /* un aggiornamento perduto non ferma l'applicazione */ }
+}, 300);
+window.addEventListener('storage', (evento) => {
+  if (evento.key !== CHIAVI_LOCALI.archivio || ignoraProssimoEventoStorage) return;
+  alCambiamentoAltrui();
+});
+
+/* =====================================================================
+   7. AVVIO
+   ===================================================================== */
+function entraCome(id) {
+  const p = leggiProfilo(id);
+  if (!p || !p.attivo) { avvisa('Questo utente non è abilitato.', 'errore'); return; }
+  stato.profilo = p;
+  localStorage.setItem(CHIAVI_LOCALI.sessione, id);
+  try { segnaAccesso(); } catch { /* non critico */ }
+  mostraSchermata('applicazione');
+  aggiornaBarraLaterale();
+  contaNotifiche(); aggiornaCampanella();
+  vaiA('cruscotto');
+  $('#contenuto').focus({ preventScroll:true });
+}
+function avvia() {
+  applicaIdentita();
+  // Il collegamento alla pagina iniziale del sito ha senso solo se la pagina è servita via web
+  if (/^https?:/.test(location.protocol)) $('#tasto-home').hidden = false;
+  caricaArchivio();
+  const sessione = localStorage.getItem(CHIAVI_LOCALI.sessione);
+  const p = sessione ? leggiProfilo(sessione) : null;
+  if (p && p.attivo) { entraCome(p.id); return; }
+  disegnaAccesso();
+  mostraSchermata('accesso');
+}
+avvia();
+</script>
+</body>
+</html>
