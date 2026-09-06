@@ -13,18 +13,11 @@
      ORIGINI_AMMESSE=https://costalonga.org,https://www.costalonga.org,https://guidocostalonga.github.io
    ===================================================================== */
 import nodemailer from 'nodemailer';
+import { env, indirizzoValido, chiaveValida, origineAmmessa, intestazioniCors, rispondi } from '../lib/comune.mjs';
 
 export const config = { path: '/invia' };
 
 const LIMITI = { destinatari: 25, oggetto: 200, testo: 20000 };
-const PREDEFINITI = {
-  SMTP_HOST: 'smtp.hostinger.com',
-  SMTP_PORT: '465',
-  SMTP_UTENTE: 'info@costalonga.org',
-  MITTENTE_NOME: 'Gestionale attività e contatti',
-  ORIGINI_AMMESSE: 'https://costalonga.org,https://www.costalonga.org,https://guidocostalonga.github.io,http://localhost:8193'
-};
-const env = (nome) => process.env[nome] || PREDEFINITI[nome] || '';
 
 export default async (richiesta) => {
   const origine = richiesta.headers.get('origin') ?? '';
@@ -39,7 +32,8 @@ export default async (richiesta) => {
       ok: true, servizio: 'gestionale-posta',
       chiave: autorizzato ? 'valida' : 'assente o errata',
       mittente: autorizzato ? env('SMTP_UTENTE') : undefined,
-      passwordImpostata: autorizzato ? Boolean(process.env.SMTP_PASSWORD) : undefined
+      passwordImpostata: autorizzato ? Boolean(process.env.SMTP_PASSWORD) : undefined,
+      archivioCondiviso: true
     }, 200, cors);
   }
 
@@ -88,46 +82,6 @@ export default async (richiesta) => {
     return rispondi({ ok: false, errore: spiega(errore), dettaglio: String(errore?.message ?? errore).slice(0, 300) }, 502, cors);
   }
 };
-
-function indirizzoValido(valore) {
-  return /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/.test(valore);
-}
-
-function chiaveValida(richiesta) {
-  const attesa = process.env.CHIAVE_SERVIZIO ?? '';
-  const chiave = (richiesta.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  return attesa.length > 0 && chiave.length > 0 && confrontoCostante(chiave, attesa);
-}
-
-// Confronto che non rivela lunghezza o caratteri giusti dai tempi di risposta
-function confrontoCostante(a, b) {
-  const ca = new TextEncoder().encode(a), cb = new TextEncoder().encode(b);
-  let diverso = ca.length ^ cb.length;
-  for (let i = 0; i < Math.max(ca.length, cb.length); i++) diverso |= (ca[i] ?? 0) ^ (cb[i] ?? 0);
-  return diverso === 0;
-}
-
-function origineAmmessa(origine) {
-  const ammesse = env('ORIGINI_AMMESSE').split(',').map((o) => o.trim()).filter(Boolean);
-  return ammesse.includes(origine);
-}
-
-function intestazioniCors(origine) {
-  const base = {
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin'
-  };
-  if (origine && origineAmmessa(origine)) base['Access-Control-Allow-Origin'] = origine;
-  return base;
-}
-
-function rispondi(oggetto, stato, cors) {
-  return new Response(JSON.stringify(oggetto), {
-    status: stato, headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
-  });
-}
 
 function spiega(errore) {
   const testo = String(errore?.message ?? errore ?? '');

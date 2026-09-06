@@ -265,12 +265,27 @@ td .azioni button{padding:.35rem .6rem;font-size:.85rem}
 
 <div id="avvisi" class="avvisi" role="status" aria-live="polite"></div>
 
+<!-- Schermata di collegamento: nuovo dispositivo, si sceglie se unirsi al gruppo o restare in locale -->
+<section id="schermata-collegamento" class="schermata" hidden aria-labelledby="titolo-collegamento">
+  <form class="riquadro" id="modulo-collegamento" novalidate>
+    <div class="marchio-grande" data-marchio></div>
+    <h1 id="titolo-collegamento">Collegamento al gruppo</h1>
+    <p class="nota">Se il tuo gruppo usa il servizio condiviso, inserisci indirizzo e chiave che ti ha dato l’amministratore: vedrai le stesse attività, gli stessi contatti e gli stessi documenti degli altri.</p>
+    <div class="campo"><label for="col-url">Indirizzo del servizio</label><input id="col-url" type="url" placeholder="https://nome-sito.netlify.app" autocomplete="off"></div>
+    <div class="campo"><label for="col-chiave">Chiave del gruppo</label><input id="col-chiave" type="password" autocomplete="off"></div>
+    <button type="submit" class="principale grande">Collega</button>
+    <p class="nota" id="esito-collegamento" style="margin-top:.6rem" aria-live="polite"></p>
+    <p class="nota" style="margin-top:1rem">Oppure lavora da solo: l’archivio resterà soltanto in questo browser.</p>
+    <button type="button" class="secondario grande" id="pulsante-solo-dispositivo">Usa solo questo dispositivo</button>
+  </form>
+</section>
+
 <!-- Schermata di primo avvio: archivio vuoto, si crea il primo amministratore -->
 <section id="schermata-primo-avvio" class="schermata" hidden aria-labelledby="titolo-primo-avvio">
   <form class="riquadro" id="modulo-primo-avvio" novalidate>
     <div class="marchio-grande" data-marchio></div>
     <h1 id="titolo-primo-avvio">Benvenuto</h1>
-    <p class="nota">L’archivio è vuoto. Inserisci i tuoi dati: sarai l’amministratore del gruppo e potrai aggiungere gli altri dalla sezione Utenti.</p>
+    <p class="nota" id="nota-primo-avvio">L’archivio è vuoto. Inserisci i tuoi dati: sarai l’amministratore del gruppo e potrai aggiungere gli altri dalla sezione Utenti.</p>
     <div class="campi-affiancati">
       <div class="campo"><label for="pa-nome">Nome</label><input id="pa-nome" required autocomplete="given-name"></div>
       <div class="campo"><label for="pa-cognome">Cognome</label><input id="pa-cognome" required autocomplete="family-name"></div>
@@ -288,11 +303,12 @@ td .azioni button{padding:.35rem .6rem;font-size:.85rem}
   <div class="riquadro">
     <div class="marchio-grande" data-marchio></div>
     <h1 id="titolo-accesso">Chi sei?</h1>
-    <p class="nota">L’archivio è custodito in questo browser. Scegli il tuo nome per entrare.</p>
+    <p class="nota" id="nota-accesso">L’archivio è custodito in questo browser. Scegli il tuo nome per entrare.</p>
     <div id="elenco-accesso" class="elenco-persone"></div>
     <p class="nota">Non ti trovi nell’elenco? Chiedi all’amministratore del gruppo di aggiungerti dalla sezione Utenti.</p>
     <button type="button" class="secondario grande" id="pulsante-importa-accesso">Ripristina da una copia di sicurezza</button>
     <input id="file-importa-accesso" type="file" accept="application/json,.json" hidden>
+    <button type="button" class="secondario grande" id="pulsante-vai-collegamento" style="margin-top:.6rem">Collega al servizio del gruppo</button>
   </div>
 </section>
 
@@ -327,6 +343,7 @@ td .azioni button{padding:.35rem .6rem;font-size:.85rem}
     <button type="button" data-sezione="profilo">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Profilo</button>
     <div class="piede-barra" id="piede-barra"></div>
+    <div class="piede-barra" id="stato-sincro" style="margin-top:0;padding-top:0"></div>
   </nav>
 
   <main id="contenuto" class="contenuto" tabindex="-1"></main>
@@ -349,12 +366,15 @@ const CHIAVI_LOCALI = {
   sessione: 'gestionale-locale.sessione',
   tema:     'gestionale-locale.tema',
   vista:    'gestionale-locale.vista',
-  avvisi:   'gestionale-locale.avvisi-posta'
+  avvisi:   'gestionale-locale.avvisi-posta',
+  servizio: 'gestionale-locale.servizio',
+  versione: 'gestionale-locale.versione'
 };
 
 const PER_PAGINA = 50;
 const RITARDO_RICERCA = 250;
-const DIMENSIONE_MASSIMA_FILE = 1 * 1024 * 1024;   // i file finiscono nell'archivio del browser
+const DIMENSIONE_MASSIMA_FILE = 1 * 1024 * 1024;        // archivio solo locale: il file finisce nel browser
+const DIMENSIONE_MASSIMA_DOCUMENTO = 4 * 1024 * 1024;   // archivio condiviso: il file va nel deposito del gruppo
 
 const STATI = { da_fare:'Da fare', in_corso:'In corso', sospesa:'Sospesa', completata:'Completata' };
 const PRIORITA = { bassa:'Bassa', media:'Media', alta:'Alta', urgente:'Urgente' };
@@ -365,7 +385,8 @@ const AZIONI_REGISTRO = {
   commento_aggiunto:'ha scritto un commento', allegato_aggiunto:'ha aggiunto un allegato',
   allegato_rimosso:'ha tolto un allegato',
   scadenza_modificata:'ha cambiato la scadenza', completata:'ha completato l’attività',
-  riaperta:'ha riaperto l’attività', modificata:'ha modificato i dati'
+  riaperta:'ha riaperto l’attività', modificata:'ha modificato i dati',
+  parte_eseguita:'ha segnato la propria parte come eseguita', parte_riaperta:'ha tolto il segno di eseguito alla propria parte'
 };
 
 /* --- Strumenti comuni --- */
@@ -429,7 +450,13 @@ function scaricaTesto(nomeFile, contenuto, tipo) {
 let archivio = null;
 
 function archivioVuoto() {
-  return { versione:1, impostazioni:{}, profili:[], contatti:[], attivita:[], partecipanti:[], commenti:[], allegati:[], registro_eventi:[] };
+  return { versione:1, impostazioni:{}, profili:[], contatti:[], attivita:[], partecipanti:[], esecuzioni:[], commenti:[], allegati:[], registro_eventi:[] };
+}
+// Completa un archivio letto da fuori con le tabelle nate dopo
+function normalizzaArchivio(a) {
+  a.impostazioni ??= {};
+  a.esecuzioni ??= [];
+  return a;
 }
 function archivioValido(oggetto) {
   return oggetto && typeof oggetto === 'object'
@@ -443,14 +470,19 @@ function caricaArchivio() {
       const letto = JSON.parse(testo);
       // Gli archivi di prova delle prime versioni usavano indirizzi @esempio.it: si scartano
       const dimostrativo = archivioValido(letto) && letto.profili.some((p) => /@esempio\.it$/i.test(p.posta_elettronica ?? ''));
-      if (archivioValido(letto) && !dimostrativo) { archivio = letto; archivio.impostazioni ??= {}; return; }
+      if (archivioValido(letto) && !dimostrativo) { archivio = normalizzaArchivio(letto); return; }
     }
   } catch { /* archivio illeggibile: si ricomincia da vuoto */ }
   archivio = archivioVuoto();
-  salvaArchivio();
+  salvaArchivioLocale();
 }
 let ignoraProssimoEventoStorage = false;
+// Salva nel browser e, se l'archivio è condiviso, programma l'invio al gruppo
 function salvaArchivio() {
+  salvaArchivioLocale();
+  if (condiviso()) pianificaInvio();
+}
+function salvaArchivioLocale() {
   try {
     ignoraProssimoEventoStorage = true;
     localStorage.setItem(CHIAVI_LOCALI.archivio, JSON.stringify(archivio));
@@ -504,6 +536,7 @@ function arricchisci(attivita) {
   return {
     ...attivita,
     partecipanti: archivio.partecipanti.filter((p) => p.attivita_id === attivita.id),
+    esecuzioni: archivio.esecuzioni.filter((e) => e.attivita_id === attivita.id),
     contatto: archivio.contatti.find((c) => c.id === attivita.contatto_id) ?? null
   };
 }
@@ -612,6 +645,8 @@ function aggiornaAttivita(id, dati) {
 function cancellaAttivita(id) {
   archivio.attivita = archivio.attivita.filter((a) => a.id !== id);
   archivio.partecipanti = archivio.partecipanti.filter((p) => p.attivita_id !== id);
+  archivio.esecuzioni = archivio.esecuzioni.filter((e) => e.attivita_id !== id);
+  if (condiviso()) archivio.allegati.filter((g) => g.attivita_id === id && g.documento_id).forEach((g) => { chiamaServizio(`/documenti/${g.documento_id}`, { method:'DELETE' }).catch(() => {}); });
   archivio.commenti = archivio.commenti.filter((c) => c.attivita_id !== id);
   archivio.allegati = archivio.allegati.filter((g) => g.attivita_id !== id);
   archivio.registro_eventi = archivio.registro_eventi.filter((e) => e.attivita_id !== id);
@@ -627,6 +662,7 @@ function invitaPartecipante(attivitaId, utenteId) {
 }
 function togliPartecipante(attivitaId, utenteId) {
   archivio.partecipanti = archivio.partecipanti.filter((p) => !(p.attivita_id === attivitaId && p.utente_id === utenteId));
+  archivio.esecuzioni = archivio.esecuzioni.filter((e) => !(e.attivita_id === attivitaId && e.utente_id === utenteId));
   registra(attivitaId, 'partecipante_rimosso');
   toccaAttivita(attivitaId);
   salvaArchivio();
@@ -648,8 +684,32 @@ function togliAllegato(allegatoId) {
   const g = archivio.allegati.find((x) => x.id === allegatoId);
   if (!g) return;
   archivio.allegati = archivio.allegati.filter((x) => x.id !== allegatoId);
+  if (g.documento_id && condiviso()) chiamaServizio(`/documenti/${g.documento_id}`, { method:'DELETE' }).catch(() => {});
   registra(g.attivita_id, 'allegato_rimosso');
   salvaArchivio();
+}
+// Le persone coinvolte in un'attività: chi l'ha creata più i partecipanti
+function personeCoinvolte(attivitaId) {
+  const a = archivio.attivita.find((x) => x.id === attivitaId);
+  if (!a) return [];
+  return [...new Set([a.creato_da, ...archivio.partecipanti.filter((p) => p.attivita_id === attivitaId).map((p) => p.utente_id)])];
+}
+function haEseguito(attivitaId, utenteId) {
+  return archivio.esecuzioni.some((e) => e.attivita_id === attivitaId && e.utente_id === utenteId);
+}
+// Ogni persona coinvolta può segnare la propria parte come eseguita, senza chiudere l'attività
+function segnaParte(attivitaId, eseguito) {
+  const io = stato.profilo.id;
+  archivio.esecuzioni = archivio.esecuzioni.filter((e) => !(e.attivita_id === attivitaId && e.utente_id === io));
+  if (eseguito) archivio.esecuzioni.push({ attivita_id:attivitaId, utente_id:io, eseguito_il:adesso() });
+  registra(attivitaId, eseguito ? 'parte_eseguita' : 'parte_riaperta');
+  toccaAttivita(attivitaId);
+  salvaArchivio();
+}
+function avanzamentoParti(attivitaId) {
+  const persone = personeCoinvolte(attivitaId);
+  const fatte = persone.filter((u) => haEseguito(attivitaId, u)).length;
+  return { fatte, totale: persone.length, persone };
 }
 function toccaAttivita(id) {
   const a = archivio.attivita.find((x) => x.id === id);
@@ -730,10 +790,117 @@ const MODALITA_AVVISI = {
   manuale:    'Mostra un pulsante per aprire il messaggio',
   spento:     'Nessun avviso'
 };
-const SERVIZIO_POSTA_PREDEFINITO = '';
+/* --- Servizio del gruppo: un solo indirizzo e una sola chiave per posta,
+       archivio condiviso e documenti. Restano in questo browser. --- */
+function servizioGruppo() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CHIAVI_LOCALI.servizio) || 'null');
+    if (c && c.url && c.chiave) return { url: String(c.url).replace(/\/+$/, ''), chiave: String(c.chiave) };
+  } catch { /* configurazione illeggibile */ }
+  return null;
+}
+function salvaServizioGruppo(url, chiave) {
+  const base = String(url).trim().replace(/\/(invia|archivio|documenti)\/?$/, '').replace(/\/+$/, '');
+  localStorage.setItem(CHIAVI_LOCALI.servizio, JSON.stringify({ url: base, chiave: String(chiave).trim() }));
+}
+function scollegaServizioGruppo() { localStorage.removeItem(CHIAVI_LOCALI.servizio); localStorage.removeItem(CHIAVI_LOCALI.versione); }
+const condiviso = () => Boolean(servizioGruppo());
 function servizioPosta() {
+  const s = servizioGruppo();
+  return s ? { url: s.url + '/invia', chiave: s.chiave } : null;
+}
+// Le vecchie versioni tenevano indirizzo e chiave dentro l'archivio: si spostano qui
+function migraConfigurazioneServizio() {
   const i = archivio?.impostazioni ?? {};
-  return (i.servizioUrl && i.servizioChiave) ? { url: i.servizioUrl.replace(/\/+$/, ''), chiave: i.servizioChiave } : null;
+  if (!servizioGruppo() && i.servizioUrl && i.servizioChiave) salvaServizioGruppo(i.servizioUrl, i.servizioChiave);
+  if (i.servizioUrl || i.servizioChiave) { delete i.servizioUrl; delete i.servizioChiave; salvaArchivioLocale(); }
+}
+async function chiamaServizio(percorso, opzioni = {}) {
+  const s = servizioGruppo();
+  if (!s) throw new Error('Servizio del gruppo non configurato.');
+  return fetch(s.url + percorso, { ...opzioni, headers: { 'Authorization': `Bearer ${s.chiave}`, ...(opzioni.headers ?? {}) } });
+}
+
+/* --- Archivio condiviso: invio dopo ogni modifica, controllo periodico delle novità --- */
+const sincro = { versione:0, invioPianificato:null, inCorso:false, inSospeso:false, ultimaSincronizzazione:null, sondaggio:null, avvisato:false };
+
+function pianificaInvio() {
+  sincro.inSospeso = true;
+  aggiornaStatoSincro();
+  clearTimeout(sincro.invioPianificato);
+  sincro.invioPianificato = setTimeout(inviaArchivio, 600);
+}
+async function inviaArchivio() {
+  if (!condiviso()) return;
+  if (sincro.inCorso) { pianificaInvio(); return; }
+  sincro.inCorso = true;
+  clearTimeout(sincro.invioPianificato); sincro.invioPianificato = null;
+  try {
+    const r = await chiamaServizio('/archivio', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ versioneAttesa: sincro.versione, da: stato.profilo ? `${stato.profilo.nome} ${stato.profilo.cognome}` : '', archivio })
+    });
+    const dati = await r.json().catch(() => ({}));
+    if (r.status === 409 && dati.conflitto) {
+      if (!dati.archivio) { sincro.versione = dati.versione; sincro.inCorso = false; pianificaInvio(); return; }
+      adottaArchivio(dati.archivio, dati.versione);
+      sincro.inSospeso = false;
+      avvisa('Qualcun altro ha salvato prima di te: ho ricaricato i dati aggiornati. La tua ultima modifica non è stata registrata, ripetila.', 'errore', 9000);
+    } else if (!r.ok || !dati.ok) {
+      throw new Error(dati.errore || `risposta ${r.status}`);
+    } else {
+      sincro.versione = dati.versione;
+      localStorage.setItem(CHIAVI_LOCALI.versione, String(dati.versione));
+      sincro.inSospeso = false; sincro.avvisato = false;
+      sincro.ultimaSincronizzazione = adesso();
+    }
+  } catch (errore) {
+    sincro.inSospeso = true;
+    if (!sincro.avvisato) { sincro.avvisato = true; avvisa(`Modifiche non ancora inviate al gruppo (${navigator.onLine ? (errore.message || 'servizio non raggiungibile') : 'nessuna connessione'}): riprovo fra poco.`, 'errore', 7000); }
+  } finally {
+    sincro.inCorso = false;
+    aggiornaStatoSincro();
+  }
+}
+// Legge l'archivio del gruppo; con soloSeCambiato torna false se la versione è la stessa
+async function scaricaArchivio({ soloSeCambiato = true } = {}) {
+  const r = await chiamaServizio('/archivio' + (soloSeCambiato ? `?dopo=${sincro.versione}` : ''));
+  if (r.status === 204) return false;
+  const dati = await r.json().catch(() => ({}));
+  if (!r.ok || !dati.ok) throw new Error(dati.errore || `risposta ${r.status}`);
+  return dati;
+}
+function adottaArchivio(nuovo, versione, { silenzioso = false } = {}) {
+  archivio = normalizzaArchivio(nuovo);
+  sincro.versione = versione;
+  localStorage.setItem(CHIAVI_LOCALI.versione, String(versione));
+  salvaArchivioLocale();
+  sincro.ultimaSincronizzazione = adesso();
+  aggiornaStatoSincro();
+  if (!silenzioso) dopoCambiamentoEsterno();
+}
+async function sondaggio() {
+  if (!condiviso() || document.hidden) return;
+  if (sincro.inSospeso || sincro.invioPianificato || sincro.inCorso) {
+    if (!sincro.inCorso && !sincro.invioPianificato) inviaArchivio();
+    return;
+  }
+  try {
+    const dati = await scaricaArchivio();
+    if (dati && dati.archivio) adottaArchivio(dati.archivio, dati.versione);
+  } catch { /* si riprova al prossimo giro */ }
+}
+function avviaSondaggio() {
+  clearInterval(sincro.sondaggio);
+  if (condiviso()) sincro.sondaggio = setInterval(sondaggio, 25000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) sondaggio(); });
+window.addEventListener('online', () => sondaggio());
+function aggiornaStatoSincro() {
+  const nodo = $('#stato-sincro');
+  if (!nodo) return;
+  if (!condiviso()) { nodo.textContent = 'Archivio solo su questo dispositivo'; return; }
+  nodo.textContent = sincro.inSospeso ? 'Gruppo: modifiche in attesa di invio' : `Gruppo: sincronizzato${sincro.ultimaSincronizzazione ? ' alle ' + new Date(sincro.ultimaSincronizzazione).toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' }) : ''}`;
 }
 function modalitaAvvisi() {
   const m = localStorage.getItem(CHIAVI_LOCALI.avvisi);
@@ -760,7 +927,8 @@ async function inviaTramiteServizio(elenco, oggetto, corpo, urlMailto) {
 }
 // Verifica il collegamento con il servizio e riferisce cosa manca
 async function provaServizio(url, chiave) {
-  const risposta = await fetch(url.replace(/\/+$/, ''), { headers: { 'Authorization': `Bearer ${chiave}` } });
+  const base = String(url).trim().replace(/\/(invia|archivio|documenti)\/?$/, '').replace(/\/+$/, '');
+  const risposta = await fetch(base + '/invia', { headers: { 'Authorization': `Bearer ${chiave}` } });
   const dati = await risposta.json();
   if (!dati.ok || dati.servizio !== 'gestionale-posta') throw new Error('L’indirizzo non risponde come servizio di posta del gestionale.');
   if (dati.chiave !== 'valida') throw new Error('Il servizio risponde ma la chiave non è quella giusta.');
@@ -866,6 +1034,7 @@ function alternaTema() {
   localStorage.setItem(CHIAVI_LOCALI.tema, nuovo);
 }
 function mostraSchermata(nome) {
+  $('#schermata-collegamento').hidden = nome !== 'collegamento';
   $('#schermata-primo-avvio').hidden = nome !== 'primo-avvio';
   $('#schermata-accesso').hidden = nome !== 'accesso';
   $('#applicazione').hidden = nome !== 'applicazione';
@@ -880,6 +1049,11 @@ function iniziali(p) { return `${(p.nome || '?')[0]}${(p.cognome || '')[0] ?? ''
 function etichettaPriorita(v) { return `<span class="etichetta priorita-${v}">Priorità: ${PRIORITA[v] ?? v}</span>`; }
 function etichettaStato(v) { return `<span class="etichetta stato-${v}">${STATI[v] ?? v}</span>`; }
 function inRitardo(a) { return Boolean(a.scadenza) && a.stato !== 'completata' && a.scadenza < oggiArchivio(); }
+function etichettaParti(a) {
+  if (!a.partecipanti?.length) return '';
+  const { fatte, totale } = avanzamentoParti(a.id);
+  return `<span class="etichetta senza-punto ${fatte === totale ? 'stato-completata' : ''}" title="Persone che hanno segnato la propria parte come eseguita">Eseguito ${fatte}/${totale}</span>`;
+}
 function etichettaScadenza(a) {
   if (!a.scadenza) return '<span class="nota">Senza scadenza</span>';
   if (inRitardo(a)) return `<span class="scaduta">Scaduta il ${dataItaliana(a.scadenza)}</span>`;
@@ -903,7 +1077,7 @@ function riquadroSintesi(numero, didascalia, filtro, allarme = false) {
       <div class="didascalia">${didascalia}</div></button>`;
 }
 function attivitaDiOggi(elenco) {
-  return elenco.filter((a) => a.stato !== 'completata' && miRiguarda(a))
+  return elenco.filter((a) => a.stato !== 'completata' && miRiguarda(a) && !haEseguito(a.id, stato.profilo.id))
     .sort((a, b) => (PESO_PRIORITA[b.priorita] - PESO_PRIORITA[a.priorita]) || confrontaScadenza(a, b))
     .slice(0, 10);
 }
@@ -911,7 +1085,7 @@ function rigaAttivita(a, conContatto = true) {
   const sotto = conContatto && a.contatto ? `<small>${proteggi(a.contatto.nome)}</small>` : '';
   return `<button type="button" class="riga-attivita p-${a.priorita} ${inRitardo(a) ? 'in-ritardo' : ''}" data-apri-attivita="${a.id}">
       <span class="titolo">${proteggi(a.titolo)}${sotto}</span>
-      ${etichettaPriorita(a.priorita)} ${etichettaStato(a.stato)} ${etichettaScadenza(a)}
+      ${etichettaPriorita(a.priorita)} ${etichettaStato(a.stato)} ${etichettaParti(a)} ${etichettaScadenza(a)}
     </button>`;
 }
 function voceCronologia(evento, conTitolo = false) {
@@ -1010,7 +1184,7 @@ function cartellino(a) {
         data-apri-attivita="${a.id}" data-trascina="${a.id}" aria-label="${proteggi(a.titolo)}, ${STATI[a.stato]}">
       <span class="titolo">${proteggi(a.titolo)}</span>
       ${a.contatto ? `<span class="nota" style="display:block;margin-bottom:.3rem">${proteggi(a.contatto.nome)}</span>` : ''}
-      <span class="riga-etichette">${etichettaPriorita(a.priorita)} ${etichettaScadenza(a)}</span>
+      <span class="riga-etichette">${etichettaPriorita(a.priorita)} ${etichettaParti(a)} ${etichettaScadenza(a)}</span>
     </div>`;
 }
 function disegnaColonne(elenco) {
@@ -1059,12 +1233,26 @@ function bloccoDati(d, modificabile) {
     </div>`;
 }
 function bloccoPartecipanti(d, modificabile) {
+  const a = d.attivita;
   const dentro = d.partecipanti.map((p) => p.utente_id);
-  const disponibili = profiliAttivi().filter((p) => !dentro.includes(p.id) && p.id !== d.attivita.creato_da);
-  return `<div class="blocco"><h3>Partecipanti</h3>
-      <div><span class="gettone" title="Ha creato l’attività">${proteggi(nominativo(d.attivita.creato_da))} <span class="nota">(creatore)</span></span>
-      ${d.partecipanti.map((p) => `<span class="gettone">${proteggi(nominativo(p.utente_id))}
+  const disponibili = profiliAttivi().filter((p) => !dentro.includes(p.id) && p.id !== a.creato_da);
+  const io = stato.profilo.id;
+  const coinvolto = a.creato_da === io || dentro.includes(io);
+  const { fatte, totale } = avanzamentoParti(a.id);
+  const segno = (utenteId) => {
+    const e = d.esecuzioni?.find((x) => x.utente_id === utenteId) ?? archivio.esecuzioni.find((x) => x.attivita_id === a.id && x.utente_id === utenteId);
+    return e ? `<span class="nota" style="color:var(--verde)" title="Eseguito il ${dataItaliana(e.eseguito_il, true)}">✓ eseguito</span>` : '<span class="nota">in attesa</span>';
+  };
+  return `<div class="blocco"><h3>Partecipanti <span class="nota" style="float:right;font-weight:400">${totale > 1 ? `${fatte} su ${totale} hanno eseguito la loro parte` : ''}</span></h3>
+      <div><span class="gettone" title="Ha creato l’attività">${proteggi(nominativo(a.creato_da))} <span class="nota">(creatore)</span> ${segno(a.creato_da)}</span>
+      ${d.partecipanti.map((p) => `<span class="gettone">${proteggi(nominativo(p.utente_id))} ${segno(p.utente_id)}
           ${modificabile ? `<button type="button" aria-label="Togli ${proteggi(nominativo(p.utente_id))}" data-togli="${p.utente_id}">&times;</button>` : ''}</span>`).join('')}</div>
+      ${coinvolto && a.stato !== 'completata' ? `<div style="margin-top:.7rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+          ${haEseguito(a.id, io)
+            ? '<button type="button" class="secondario" id="pulsante-parte" data-eseguito="0">Non ho ancora finito la mia parte</button><span class="nota" style="color:var(--verde)">Hai segnato la tua parte come eseguita.</span>'
+            : '<button type="button" class="principale" id="pulsante-parte" data-eseguito="1">Ho eseguito la mia parte</button><span class="nota">Segna solo il tuo pezzo: l’attività resta aperta per gli altri.</span>'}
+        </div>
+        ${fatte === totale && totale > 0 ? '<p class="nota" style="margin:.5rem 0 0;color:var(--verde)">Tutti hanno eseguito la loro parte: puoi segnare l’attività come completata.</p>' : ''}` : ''}
       ${modificabile && disponibili.length ? `<div class="campo" style="margin-top:.6rem"><label for="det-invita">Invita una persona</label>
         <select id="det-invita">${opzioni(disponibili.map((p) => [p.id, `${p.nome} ${p.cognome}`]), '', 'Scegli…')}</select></div>` : ''}
     </div>`;
@@ -1084,7 +1272,7 @@ function bloccoAllegati(d, modificabile) {
       ${d.allegati.length ? d.allegati.map((g) => `<div class="allegato">
           ${g.tipo === 'collegamento'
             ? `<a href="${proteggi(g.indirizzo)}" target="_blank" rel="noopener noreferrer">${proteggi(g.etichetta)}</a><span class="nota">(collegamento)</span>`
-            : `<button type="button" class="secondario" data-scarica="${g.id}">${proteggi(g.etichetta)}</button><span class="nota">(file, ${Math.round((g.dimensione ?? 0) / 1024)} KB)</span>`}
+            : `<button type="button" class="secondario" data-scarica="${g.id}">${proteggi(g.etichetta)}</button><span class="nota">(${g.documento_id ? 'documento del gruppo' : 'file'}, ${Math.round((g.dimensione ?? 0) / 1024)} KB)</span>`}
           <span class="spazio"></span>
           ${modificabile ? `<button type="button" class="icona" data-togli-allegato="${g.id}" aria-label="Togli l’allegato ${proteggi(g.etichetta)}">&times;</button>` : ''}
         </div>`).join('') : '<p class="nota">Nessun allegato.</p>'}
@@ -1093,7 +1281,7 @@ function bloccoAllegati(d, modificabile) {
           <div class="campo"><label for="det-etichetta">Testo mostrato</label><input id="det-etichetta" placeholder="Come si chiama"></div>
         </div>
         <button type="button" class="secondario" id="pulsante-collegamento">Aggiungi il collegamento</button>
-        <div class="campo" style="margin-top:.7rem"><label for="det-file">Carica un file (massimo 1 MB, resta in questo browser)</label><input id="det-file" type="file"></div>` : ''}
+        <div class="campo" style="margin-top:.7rem"><label for="det-file">${condiviso() ? 'Allega un documento (massimo 4 MB, lo vedono tutte le persone del gruppo)' : 'Carica un file (massimo 1 MB, resta in questo browser)'}</label><input id="det-file" type="file"></div>` : ''}
     </div>`;
 }
 function disegnaPannelloAttivita(d) {
@@ -1267,8 +1455,9 @@ function disegnaProfilo() {
     </div>
     <div class="scheda" style="max-width:34rem;margin-bottom:1rem">
       <h2>Archivio</h2>
-      <p class="nota">I dati sono custoditi in questo browser (${peso} KB): ${archivio.attivita.length} attività, ${archivio.contatti.length} contatti, ${archivio.profili.length} utenti.
-        Una copia di sicurezza periodica ti mette al riparo dalla pulizia dei dati del browser.</p>
+      <p class="nota">${condiviso()
+        ? `L’archivio è condiviso con il gruppo tramite il servizio (versione ${sincro.versione}${sincro.ultimaSincronizzazione ? ', sincronizzato alle ' + new Date(sincro.ultimaSincronizzazione).toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' }) : ''}): ${archivio.attivita.length} attività, ${archivio.contatti.length} contatti, ${archivio.profili.length} utenti. La copia in questo browser (${peso} KB) serve solo da riserva.`
+        : `I dati sono custoditi in questo browser (${peso} KB): ${archivio.attivita.length} attività, ${archivio.contatti.length} contatti, ${archivio.profili.length} utenti. Una copia di sicurezza periodica ti mette al riparo dalla pulizia dei dati del browser.`}</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button type="button" class="secondario" id="pulsante-esporta-archivio">Scarica una copia di sicurezza</button>
         <button type="button" class="secondario" id="pulsante-importa-archivio">Ripristina da una copia</button>
@@ -1278,26 +1467,28 @@ function disegnaProfilo() {
     </div>
     <div class="scheda" style="max-width:34rem;margin-bottom:1rem">
       <h2>Avvisi per posta elettronica</h2>
-      <p class="nota">Quando registri un utente o cambi qualcosa in un’attività (stato, scadenza, commenti, partecipanti, allegati), l’app prepara un messaggio per le persone interessate e lo passa al programma di posta di questo dispositivo: a premere «Invia» sei tu. La pagina non ha un server e non può spedire da sola.</p>
+      <p class="nota">Quando registri un utente o cambi qualcosa in un’attività (stato, scadenza, commenti, partecipanti, allegati, parti eseguite), l’app avvisa le persone interessate: con il servizio del gruppo la mail parte da sola, altrimenti viene preparata nel programma di posta di questo dispositivo e a premere «Invia» sei tu.</p>
       <div class="campo"><label for="pro-avvisi">Come comportarsi</label>
         <select id="pro-avvisi">${Object.entries(MODALITA_AVVISI).filter(([v]) => v !== 'servizio' || servizioPosta())
           .map(([v, t]) => `<option value="${v}" ${modalitaAvvisi() === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <p class="nota" style="margin:0">Il tuo indirizzo, ${proteggi(p.posta_elettronica)}, è quello a cui gli altri manderanno gli avvisi che ti riguardano.
         ${servizioPosta() ? 'Il servizio di posta del gruppo è configurato: gli avvisi possono partire da soli.' : 'Il servizio di posta del gruppo non è configurato: gli avvisi passano dal programma di posta.'}</p>
     </div>
-    ${amministratore() ? `<div class="scheda" style="max-width:34rem;margin-bottom:1rem">
-      <h2>Servizio di posta del gruppo</h2>
-      <p class="nota">Un piccolo servizio esterno (la funzione <code>/invia</code> del sito su Netlify, vedi la cartella <code>netlify</code> del progetto) spedisce gli avvisi dalla casella del gruppo, così partono da soli senza aprire il programma di posta. Indirizzo e chiave restano nell’archivio (e nelle copie di sicurezza), quindi valgono per tutti gli utenti di questo archivio.</p>
+    <div class="scheda" style="max-width:34rem;margin-bottom:1rem">
+      <h2>Servizio del gruppo</h2>
+      <p class="nota">Il servizio del gruppo (il sito su Netlify, cartella <code>netlify</code> del progetto) tiene l’archivio condiviso fra tutte le persone, custodisce i documenti allegati e spedisce gli avvisi dalla casella del gruppo. Indirizzo e chiave restano in questo browser: vanno inseriti una volta su ogni dispositivo.</p>
+      ${amministratore() || !condiviso() ? `
       <div class="campo"><label for="ser-url">Indirizzo del servizio</label>
-        <input id="ser-url" type="url" value="${proteggi(archivio.impostazioni.servizioUrl ?? SERVIZIO_POSTA_PREDEFINITO)}" placeholder="https://nome-sito.netlify.app/invia"></div>
-      <div class="campo"><label for="ser-chiave">Chiave del servizio</label>
-        <input id="ser-chiave" type="password" value="${proteggi(archivio.impostazioni.servizioChiave ?? '')}" autocomplete="off" placeholder="La chiave consegnata con il servizio"></div>
+        <input id="ser-url" type="url" value="${proteggi(servizioGruppo()?.url ?? '')}" placeholder="https://nome-sito.netlify.app"></div>
+      <div class="campo"><label for="ser-chiave">Chiave del gruppo</label>
+        <input id="ser-chiave" type="password" value="${proteggi(servizioGruppo()?.chiave ?? '')}" autocomplete="off" placeholder="La chiave consegnata dall’amministratore"></div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button type="button" class="principale" id="pulsante-salva-servizio">Salva e prova</button>
-        ${servizioPosta() ? '<button type="button" class="pericolo" id="pulsante-togli-servizio">Scollega il servizio</button>' : ''}
-      </div>
+        ${condiviso() ? '<button type="button" class="pericolo" id="pulsante-togli-servizio">Scollega questo dispositivo</button>' : ''}
+      </div>` : `<p class="nota">Questo dispositivo è collegato a ${proteggi(servizioGruppo().url)}.</p>
+      <button type="button" class="pericolo" id="pulsante-togli-servizio">Scollega questo dispositivo</button>`}
       <p class="nota" id="esito-servizio" style="margin:.6rem 0 0" aria-live="polite"></p>
-    </div>` : ''}
+    </div>
     <div class="scheda" style="max-width:34rem">
       <h2>Sessione</h2>
       <p class="nota">Sei entrato come ${proteggi(p.nome)} ${proteggi(p.cognome)}. Uscendo torni alla scelta della persona.</p>
@@ -1364,6 +1555,8 @@ function moduloUtente(p = {}) {
 
 /* --- 5.8 Schermata di accesso --- */
 function disegnaAccesso() {
+  $('#nota-accesso').textContent = condiviso() ? 'L’archivio è quello condiviso del gruppo. Scegli il tuo nome per entrare.' : 'L’archivio è custodito in questo browser. Scegli il tuo nome per entrare.';
+  $('#pulsante-vai-collegamento').hidden = condiviso();
   const persone = profiliAttivi().slice().sort((a, b) => a.cognome.localeCompare(b.cognome, 'it'));
   $('#elenco-accesso').innerHTML = persone.length ? persone.map((p) => `
     <button type="button" class="persona" data-entra="${p.id}">
@@ -1495,10 +1688,28 @@ function aggiungiCollegamento() {
   try { aggiungiAllegato(id, 'collegamento', etichetta, indirizzo); apriAttivita(id); avvisaVariazione(id, 'ha aggiunto un collegamento', `${etichetta}\n${indirizzo}`); }
   catch (errore) { avvisa(spiegaErrore(errore, 'aggiunta del collegamento'), 'errore'); }
 }
-function caricaDalPannello(file) {
+async function caricaDalPannello(file) {
   if (!file) return;
-  if (file.size > DIMENSIONE_MASSIMA_FILE) { avvisa('Il file supera la dimensione massima di 1 MB.', 'errore'); return; }
   const id = stato.dettaglioAttivita.attivita.id;
+  if (condiviso()) {
+    if (file.size > DIMENSIONE_MASSIMA_DOCUMENTO) { avvisa('Il documento supera la dimensione massima di 4 MB.', 'errore'); return; }
+    avvisa(`Carico «${file.name}»…`, 'neutro', 3000);
+    try {
+      const documentoId = nuovoId();
+      const r = await chiamaServizio(`/documenti/${documentoId}`, {
+        method: 'PUT', body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream', 'X-Nome-File': encodeURIComponent(file.name) }
+      });
+      const dati = await r.json().catch(() => ({}));
+      if (!r.ok || !dati.ok) throw new Error(dati.errore || `risposta ${r.status}`);
+      if (!stato.dettaglioAttivita || stato.dettaglioAttivita.attivita.id !== id) return;
+      aggiungiAllegato(id, 'file', file.name, '', { documento_id: documentoId, mime: file.type, dimensione: file.size });
+      apriAttivita(id); avvisa('Documento allegato: lo vedono tutte le persone del gruppo.', 'bene');
+      avvisaVariazione(id, 'ha allegato un documento', `${file.name} (lo trovi fra gli allegati dell’attività nel gestionale)`);
+    } catch (errore) { avvisa(`Documento non caricato: ${navigator.onLine ? (errore.message || 'servizio non raggiungibile') : 'nessuna connessione'}.`, 'errore', 8000); }
+    return;
+  }
+  if (file.size > DIMENSIONE_MASSIMA_FILE) { avvisa('Il file supera la dimensione massima di 1 MB.', 'errore'); return; }
   const lettore = new FileReader();
   lettore.onload = () => {
     try { aggiungiAllegato(id, 'file', file.name, lettore.result, { mime:file.type, dimensione:file.size }); apriAttivita(id); avvisa('File allegato.', 'bene'); avvisaVariazione(id, 'ha allegato un file', `${file.name} (il file resta nell’archivio del gestionale)`); }
@@ -1507,9 +1718,22 @@ function caricaDalPannello(file) {
   lettore.onerror = () => avvisa('Non è stato possibile leggere il file.', 'errore');
   lettore.readAsDataURL(file);
 }
-function scaricaAllegato(allegatoId) {
+async function scaricaAllegato(allegatoId) {
   const g = archivio.allegati.find((x) => x.id === allegatoId);
   if (!g) return;
+  if (g.documento_id) {
+    if (!condiviso()) { avvisa('Questo documento sta nel deposito del gruppo: collega il servizio per aprirlo.', 'errore'); return; }
+    try {
+      const r = await chiamaServizio(`/documenti/${g.documento_id}`);
+      if (!r.ok) throw new Error(r.status === 404 ? 'documento non più presente' : `risposta ${r.status}`);
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const finestra = window.open(url, '_blank');
+      if (!finestra) { const a = document.createElement('a'); a.href = url; a.download = g.etichetta; document.body.append(a); a.click(); a.remove(); }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (errore) { avvisa(`Documento non aperto: ${errore.message}.`, 'errore'); }
+    return;
+  }
   const a = document.createElement('a');
   a.href = g.indirizzo; a.download = g.etichetta; document.body.append(a); a.click(); a.remove();
 }
@@ -1608,25 +1832,59 @@ function salvaProfilo() {
     aggiornaBarraLaterale();
   } catch (errore) { avvisa(spiegaErrore(errore, 'salvataggio'), 'errore'); }
 }
-async function salvaServizio() {
-  const url = $('#ser-url').value.trim().replace(/\/+$/, '');
-  const chiave = $('#ser-chiave').value.trim();
-  const esito = $('#esito-servizio');
-  if (!/^https:\/\/\S+$/.test(url) || !chiave) { avvisa('Servono l’indirizzo https del servizio e la chiave.', 'errore'); return; }
+// Collega questo dispositivo al servizio del gruppo e allinea l'archivio
+async function collegaAlGruppo(url, chiave, esito) {
+  if (!/^https?:\/\/\S+$/.test(url) || !chiave) { avvisa('Servono l’indirizzo del servizio e la chiave del gruppo.', 'errore'); return false; }
   esito.textContent = 'Provo il collegamento…';
   try {
     const messaggio = await provaServizio(url, chiave);
-    archivio.impostazioni.servizioUrl = url;
-    archivio.impostazioni.servizioChiave = chiave;
-    salvaArchivio();
+    salvaServizioGruppo(url, chiave);
+    const remoto = await scaricaArchivio({ soloSeCambiato:false });
+    const localeConDati = archivio.profili.length > 0 || archivio.attivita.length > 0 || archivio.contatti.length > 0;
+    if (remoto.archivio && localeConDati && JSON.stringify(remoto.archivio) !== JSON.stringify(archivio)) {
+      const scelta = await new Promise((risolvi) => {
+        apriModale('Quale archivio tenere?',
+          `<p>Sul servizio del gruppo c’è già un archivio con <strong>${remoto.archivio.attivita.length} attività</strong>, <strong>${remoto.archivio.contatti.length} contatti</strong> e <strong>${remoto.archivio.profili.length} utenti</strong>.
+           Su questo dispositivo ce n’è un altro con ${archivio.attivita.length} attività, ${archivio.contatti.length} contatti e ${archivio.profili.length} utenti.</p>
+           <p class="nota">Di norma si usa quello del gruppo. Caricare quello di questo dispositivo lo sostituisce per tutti.</p>`,
+          `<button type="button" class="principale" id="scelta-gruppo">Usa quello del gruppo</button>
+           <button type="button" class="pericolo" id="scelta-locale">Carica questo al posto suo</button>
+           <button type="button" class="secondario" id="scelta-annulla">Annulla</button>`);
+        $('#scelta-gruppo').addEventListener('click', () => { chiudiModale(); risolvi('gruppo'); });
+        $('#scelta-locale').addEventListener('click', () => { chiudiModale(); risolvi('locale'); });
+        $('#scelta-annulla').addEventListener('click', () => { chiudiModale(); risolvi(null); });
+      });
+      if (!scelta) { scollegaServizioGruppo(); esito.textContent = 'Collegamento annullato.'; return false; }
+      if (scelta === 'gruppo') adottaArchivio(remoto.archivio, remoto.versione, { silenzioso:true });
+      else { sincro.versione = remoto.versione; await inviaArchivio(); }
+    } else if (remoto.archivio) {
+      adottaArchivio(remoto.archivio, remoto.versione, { silenzioso:true });
+    } else if (localeConDati) {
+      sincro.versione = remoto.versione; await inviaArchivio();
+    } else {
+      sincro.versione = remoto.versione;
+    }
     localStorage.setItem(CHIAVI_LOCALI.avvisi, 'servizio');
-    avvisa('Servizio di posta collegato.', 'bene');
-    ridisegna();
-    $('#esito-servizio').textContent = messaggio;
+    avviaSondaggio();
+    esito.textContent = messaggio;
+    return true;
   } catch (errore) {
+    scollegaServizioGruppo();
     esito.textContent = navigator.onLine ? (errore.message || 'Il servizio non risponde.') : 'Nessuna connessione.';
     avvisa('Collegamento non riuscito: niente è stato salvato.', 'errore');
+    return false;
   }
+}
+async function salvaServizio() {
+  const riuscito = await collegaAlGruppo($('#ser-url').value.trim(), $('#ser-chiave').value.trim(), $('#esito-servizio'));
+  if (!riuscito) return;
+  const messaggio = $('#esito-servizio').textContent;
+  // Il profilo collegato potrebbe non esistere nell'archivio del gruppo
+  stato.profilo = leggiProfilo(stato.profilo?.id);
+  if (!stato.profilo) { esci(); avvisa('Dispositivo collegato al gruppo: scegli il tuo nome per entrare.', 'bene', 8000); return; }
+  avvisa('Dispositivo collegato al gruppo.', 'bene');
+  ridisegna();
+  $('#esito-servizio').textContent = messaggio;
 }
 function esportaArchivio() {
   scaricaTesto(`gestionale-copia-${oggiArchivio()}.json`, JSON.stringify(archivio, null, 1), 'application/json');
@@ -1644,7 +1902,7 @@ function importaArchivio(file, poi) {
          Sostituirà tutto l’archivio attuale di questo browser.</p>`,
         `<button type="button" class="pericolo" id="conferma-si">Sì, sostituisci</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
       $('#conferma-si').addEventListener('click', () => {
-        archivio = letto; archivio.impostazioni ??= {}; salvaArchivio(); chiudiModale();
+        archivio = normalizzaArchivio(letto); salvaArchivio(); chiudiModale();
         avvisa('Archivio ripristinato.', 'bene');
         poi();
       });
@@ -1671,7 +1929,15 @@ function esci() {
 }
 // Schermata giusta per chi non è collegato: primo avvio se non c'è nessun utente
 function mostraIngresso() {
-  if (!archivio.profili.length) { mostraSchermata('primo-avvio'); $('#pa-nome').focus(); return; }
+  if (!archivio.profili.length && !condiviso() && localStorage.getItem(CHIAVI_LOCALI.servizio + '.scelta') !== 'locale') {
+    mostraSchermata('collegamento'); $('#col-url').focus(); return;
+  }
+  if (!archivio.profili.length) {
+    $('#nota-primo-avvio').textContent = condiviso()
+      ? 'L’archivio del gruppo è ancora vuoto. Inserisci i tuoi dati: sarai l’amministratore e potrai aggiungere gli altri dalla sezione Utenti.'
+      : 'L’archivio è vuoto. Inserisci i tuoi dati: sarai l’amministratore del gruppo e potrai aggiungere gli altri dalla sezione Utenti.';
+    mostraSchermata('primo-avvio'); $('#pa-nome').focus(); return;
+  }
   disegnaAccesso();
   mostraSchermata('accesso');
 }
@@ -1707,6 +1973,8 @@ document.addEventListener('click', (evento) => {
   if (entra) { entraCome(entra.dataset.entra); return; }
   if (dentro('#pulsante-importa-accesso')) { $('#file-importa-accesso').click(); return; }
   if (dentro('#pulsante-importa-primo-avvio')) { $('#file-importa-primo-avvio').click(); return; }
+  if (dentro('#pulsante-vai-collegamento')) { mostraSchermata('collegamento'); $('#col-url').focus(); return; }
+  if (dentro('#pulsante-solo-dispositivo')) { localStorage.setItem(CHIAVI_LOCALI.servizio + '.scelta', 'locale'); mostraIngresso(); return; }
 
   // Cornice
   if (dentro('#pulsante-menu')) { alternaMenu(!$('#barra-laterale').classList.contains('aperta')); return; }
@@ -1759,6 +2027,16 @@ document.addEventListener('click', (evento) => {
     if (dentro('#pulsante-completa')) { cambiaStatoAttivita(id, 'completata'); return; }
     if (dentro('#pulsante-riapri')) { cambiaStatoAttivita(id, 'in_corso'); return; }
     if (dentro('#pulsante-commenta')) { commenta(); return; }
+    const parte = dentro('#pulsante-parte');
+    if (parte) {
+      const eseguito = parte.dataset.eseguito === '1';
+      try {
+        segnaParte(id, eseguito); apriAttivita(id); ridisegna();
+        avvisa(eseguito ? 'La tua parte è segnata come eseguita.' : 'Segno di eseguito tolto.', 'bene');
+        avvisaVariazione(id, eseguito ? 'ha segnato la propria parte come eseguita' : 'ha tolto il segno di eseguito alla propria parte');
+      } catch (e) { avvisa(spiegaErrore(e, 'operazione'), 'errore'); }
+      return;
+    }
     if (dentro('#pulsante-collegamento')) { aggiungiCollegamento(); return; }
     const togli = dentro('[data-togli]');
     if (togli) {
@@ -1831,10 +2109,14 @@ document.addEventListener('click', (evento) => {
   if (dentro('#pulsante-salva-profilo')) { salvaProfilo(); return; }
   if (dentro('#pulsante-salva-servizio')) { salvaServizio(); return; }
   if (dentro('#pulsante-togli-servizio')) {
-    delete archivio.impostazioni.servizioUrl; delete archivio.impostazioni.servizioChiave;
-    localStorage.removeItem(CHIAVI_LOCALI.avvisi);
-    try { salvaArchivio(); avvisa('Servizio scollegato: gli avvisi tornano al programma di posta.', 'bene'); ridisegna(); }
-    catch (e) { avvisa(spiegaErrore(e, 'salvataggio'), 'errore'); }
+    apriModale('Scollegare questo dispositivo?',
+      '<p>Questo browser smetterà di sincronizzarsi con il gruppo e continuerà con una copia locale dei dati attuali. I documenti del gruppo non saranno più apribili da qui finché non lo ricolleghi.</p>',
+      `<button type="button" class="pericolo" id="conferma-si">Sì, scollega</button><button type="button" class="secondario" id="conferma-no">Annulla</button>`);
+    $('#conferma-si').addEventListener('click', () => {
+      scollegaServizioGruppo(); localStorage.removeItem(CHIAVI_LOCALI.avvisi); avviaSondaggio(); chiudiModale();
+      avvisa('Dispositivo scollegato dal gruppo.', 'bene'); ridisegna(); aggiornaStatoSincro();
+    });
+    $('#conferma-no').addEventListener('click', chiudiModale);
     return;
   }
   if (dentro('#pulsante-esporta-archivio')) { esportaArchivio(); return; }
@@ -1924,7 +2206,14 @@ const alCambiamentoAltrui = conRitardo(() => {
     if (!testo) return;
     const letto = JSON.parse(testo);
     if (!archivioValido(letto)) return;
-    archivio = letto; archivio.impostazioni ??= {};
+    archivio = normalizzaArchivio(letto);
+    sincro.versione = Number(localStorage.getItem(CHIAVI_LOCALI.versione) || sincro.versione);
+    dopoCambiamentoEsterno();
+  } catch { /* un aggiornamento perduto non ferma l'applicazione */ }
+}, 300);
+// Allinea l'interfaccia a un archivio arrivato da fuori (altra scheda o gruppo)
+function dopoCambiamentoEsterno() {
+  try {
     if (!stato.profilo) { mostraIngresso(); return; }
     stato.profilo = leggiProfilo(stato.profilo.id);
     if (!stato.profilo || !stato.profilo.attivo) { esci(); avvisa('Il tuo utente è stato modificato: accedi di nuovo.', 'errore'); return; }
@@ -1934,7 +2223,7 @@ const alCambiamentoAltrui = conRitardo(() => {
     if (stato.dettaglioContatto) apriContatto(stato.dettaglioContatto.id);
     if (stato.sezione !== 'profilo') ridisegna();
   } catch { /* un aggiornamento perduto non ferma l'applicazione */ }
-}, 300);
+}
 window.addEventListener('storage', (evento) => {
   if (evento.key !== CHIAVI_LOCALI.archivio || ignoraProssimoEventoStorage) return;
   alCambiamentoAltrui();
@@ -1951,20 +2240,42 @@ function entraCome(id) {
   try { segnaAccesso(); } catch { /* non critico */ }
   mostraSchermata('applicazione');
   aggiornaBarraLaterale();
+  aggiornaStatoSincro();
   contaNotifiche(); aggiornaCampanella();
   vaiA('cruscotto');
   $('#contenuto').focus({ preventScroll:true });
 }
-function avvia() {
+async function avvia() {
   applicaIdentita();
   // Il collegamento alla pagina iniziale del sito ha senso solo se la pagina è servita via web
   if (/^https?:/.test(location.protocol)) $('#tasto-home').hidden = false;
   caricaArchivio();
+  migraConfigurazioneServizio();
+  sincro.versione = Number(localStorage.getItem(CHIAVI_LOCALI.versione) || 0);
+  if (condiviso()) {
+    try {
+      const remoto = await scaricaArchivio({ soloSeCambiato:false });
+      if (remoto.archivio) adottaArchivio(remoto.archivio, remoto.versione, { silenzioso:true });
+      else if (archivio.profili.length) { sincro.versione = remoto.versione; await inviaArchivio(); }
+      else sincro.versione = remoto.versione;
+    } catch (errore) {
+      sincro.inSospeso = true;
+      avvisa(`Archivio del gruppo non raggiungibile (${navigator.onLine ? (errore.message || 'servizio non raggiungibile') : 'nessuna connessione'}): uso la copia di questo dispositivo.`, 'errore', 9000);
+    }
+    avviaSondaggio();
+  }
   const sessione = localStorage.getItem(CHIAVI_LOCALI.sessione);
   const p = sessione ? leggiProfilo(sessione) : null;
   if (p && p.attivo) { entraCome(p.id); return; }
   mostraIngresso();
 }
+
+// Collegamento al gruppo dalla schermata iniziale
+$('#modulo-collegamento').addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const riuscito = await collegaAlGruppo($('#col-url').value.trim(), $('#col-chiave').value.trim(), $('#esito-collegamento'));
+  if (riuscito) { avvisa('Dispositivo collegato al gruppo.', 'bene'); mostraIngresso(); }
+});
 
 // Primo avvio: crea l'amministratore ed entra
 $('#modulo-primo-avvio').addEventListener('submit', (evento) => {
